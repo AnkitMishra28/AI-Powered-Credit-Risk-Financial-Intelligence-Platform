@@ -1,0 +1,26 @@
+{
+  "name": "creditlens-platform",
+  "version": "1.0.0",
+  "description": "CreditLens — AI-Powered Credit Risk & Financial Intelligence Platform",
+  "private": true,
+  "scripts": {
+    "dev:frontend": "cd frontend && node \"node_modules/next/dist/bin/next\" dev",
+    "build:frontend": "cd frontend && node \"node_modules/next/dist/bin/next\" build",
+    "start:frontend": "cd frontend && node \"node_modules/next/dist/bin/next\" start",
+    "lint:frontend": "cd frontend && node \"node_modules/eslint/bin/eslint.js\" .",
+    "dev:backend": "cd backend && uvicorn app.main:app --reload --port 8000",
+    "start:backend": "cd backend && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+  },
+  "keywords": [
+    "credit-risk",
+    "financial-intelligence",
+    "credit-health-score",
+    "explainable-ai",
+    "rag",
+    "pgvector",
+    "fastapi",
+    "nextjs"
+  ],
+  "author": "CreditLens Team",
+  "license": "MIT"
+}
