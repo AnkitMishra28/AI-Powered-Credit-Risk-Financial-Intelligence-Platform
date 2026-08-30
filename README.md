@@ -9,10 +9,13 @@
 
 CreditLens is a production-grade full-stack fintech platform designed to bridge the gap between traditional quantitative credit assessment and modern explainable artificial intelligence.
 
-Unlike generic finance dashboards or simple LLM wrappers, CreditLens enforces strict architectural boundaries:
+Unlike generic finance dashboards or simple LLM wrappers, CreditLens enforces strict architectural boundaries and user isolation:
 
 ```
 DETERMINISTIC INGESTION PIPELINE ──►  Statement Ingestion (CSV/PDF) ➔ Normalization ➔ 16-Category Taxonomy
+           │
+           ▼
+PERSISTENT PRODUCTION DATA LAYER ──►  PostgreSQL / AsyncPG + Alembic Migrations (Strict User Scoping & Deduplication)
            │
            ▼
 DETERMINISTIC FINANCIAL LOGIC    ──►  Exact 0–1000 Credit Health Score & Statistical Anomalies (Rule-Based)
@@ -40,11 +43,11 @@ LLM SYNTHESIS & INSIGHTS         ──►  Natural Language Grounded Explanatio
                        │     React 19 / TypeScript / Tailwind   │
                        └───────────────────┬────────────────────┘
                                            │
-                                  REST APIs / JSON
+                                  REST APIs / JSON / JWT Bearer
                                            │
                        ┌───────────────────▼────────────────────┐
                        │          FastAPI Backend API           │
-                       │        Pydantic v2 / AsyncPG           │
+                       │      Pydantic v2 / AsyncPG / bcrypt    │
                        └───────────┬───────────────┬────────────┘
                                    │               │
             ┌──────────────────────┴───────────────┴──────────────────────┐
@@ -68,6 +71,17 @@ LLM SYNTHESIS & INSIGHTS         ──►  Natural Language Grounded Explanatio
                                │  Transactions, Chunks, Embeds │
                                └───────────────────────────────┘
 ```
+
+---
+
+## 🔒 Phase 6: Production Data Layer, Real Authentication & User-Scoped Intelligence
+
+### 1. Multi-Tenant User Isolation & Security Guarantees
+- **Authentication Lifecycle**: Built on native `bcrypt` cryptographic password hashing and signed JSON Web Tokens (`HS256`) with expiration.
+- **Strict User Scoping**: Statements, transactions, snapshots, XGBoost risk predictions, and Copilot conversational histories are tied to indexed `user_id` foreign keys (`ondelete="CASCADE"`). User A can never read or query User B's financial artifacts.
+- **Transaction Fingerprint Deduplication**: Prevents duplicate entries on re-uploading identical statements via SHA-256 fingerprint matching (`{iso_date}_{merchant}_{amount}_{type}`).
+- **Async Database Architecture**: Uses SQLAlchemy 2.0 async engine (`asyncpg` for PostgreSQL in Docker/Cloud, automatic `sqlite+aiosqlite` standalone local fallback).
+- **Database Migrations**: Version-controlled migration schemas managed through **Alembic** (`backend/alembic/versions/4a3e1f91a362_001_phase6_initial_schema.py`).
 
 ---
 
@@ -156,7 +170,10 @@ source .venv/bin/activate
 # Install dependencies
 python -m pip install -r requirements.txt
 
-# Run complete backend, ML, Ingestion & RAG integration test suite
+# Run database migrations
+alembic upgrade head
+
+# Run complete 24-test backend, DB, Auth, ML, Ingestion & RAG test suite
 python test_api.py
 
 # Start FastAPI server on port 8000
@@ -164,6 +181,9 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 - **Interactive Swagger Docs**: [http://localhost:8000/api/v1/docs](http://localhost:8000/api/v1/docs)
+- **User Registration**: `POST http://localhost:8000/api/v1/users/register`
+- **User Login**: `POST http://localhost:8000/api/v1/users/login`
+- **Current Profile**: `GET http://localhost:8000/api/v1/users/me`
 - **Copilot RAG Query**: `POST http://localhost:8000/api/v1/copilot/query`
 - **Statement Upload**: `POST http://localhost:8000/api/v1/statements/upload`
 - **Transactions Ledger**: `GET http://localhost:8000/api/v1/transactions`
@@ -186,6 +206,7 @@ npm run lint
 npm run dev
 ```
 
+- **Sign In / Registration**: [http://localhost:3000/login](http://localhost:3000/login)
 - **Copilot Workspace**: [http://localhost:3000/copilot](http://localhost:3000/copilot)
 - **Statement Ingestion**: [http://localhost:3000/statements](http://localhost:3000/statements)
 - **Spending Intelligence**: [http://localhost:3000/spending](http://localhost:3000/spending)
@@ -197,8 +218,13 @@ npm run dev
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
+| `POST` | `/api/v1/users/register` | Registers new user, hashes password (bcrypt), returns JWT Bearer token |
+| `POST` | `/api/v1/users/login` | Authenticates credentials, issues signed JWT token with claims |
+| `GET` | `/api/v1/users/me` | Returns current user profile with token session verification |
+| `POST` | `/api/v1/users/logout` | Session invalidation |
 | `POST` | `/api/v1/copilot/query` | RAG financial intelligence inquiry with verified citations & metric grounding |
-| `POST` | `/api/v1/statements/upload` | Ingests CSV/PDF statement, normalizes merchants, categorizes transactions |
+| `GET` | `/api/v1/copilot/history` | Retrieves user-scoped previous inquiries and grounded responses |
+| `POST` | `/api/v1/statements/upload` | Ingests CSV/PDF statement, normalizes merchants, categorizes transactions, deduplicates |
 | `GET` | `/api/v1/statements` | Lists uploaded financial statements with file metadata and totals |
 | `GET` | `/api/v1/statements/{id}` | Retrieves specific statement processing status and summary |
 | `GET` | `/api/v1/transactions` | Paginated, filterable canonical transaction ledger (search, category, type) |
@@ -212,7 +238,6 @@ npm run dev
 | `GET` | `/api/v1/risk/model-info` | Model metadata, evaluation metrics, and feature catalog |
 | `GET` | `/api/v1/credit-health/summary` | Computes deterministic 0–1000 Credit Health Score and 5-factor breakdown |
 | `POST` | `/api/v1/credit-health/calculate` | Calculates dynamic 0–1000 score for custom applicant inputs |
-| `POST` | `/api/v1/users/login` | Session authentication & demo account token issuance |
 
 ---
 

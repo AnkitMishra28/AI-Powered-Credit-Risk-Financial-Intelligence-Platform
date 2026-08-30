@@ -5,6 +5,7 @@ Parses multi-format banking and credit card CSV statements into canonical transa
 import io
 import csv
 import re
+import hashlib
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple
 
@@ -216,6 +217,7 @@ def parse_csv_statement(
             if fp in seen_fingerprints:
                 continue
             seen_fingerprints.add(fp)
+            t_hash = hashlib.sha256(fp.encode("utf-8")).hexdigest()
 
             txn = CanonicalTransaction(
                 statement_id=statement_id,
@@ -228,6 +230,7 @@ def parse_csv_statement(
                 category_confidence=confidence,
                 classification_method=method,
                 balance=balance,
+                transaction_hash=t_hash,
                 source="csv"
             )
             parsed_txns.append(txn)

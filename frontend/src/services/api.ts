@@ -7,6 +7,23 @@ export interface ApiResponse<T> {
   is_demo?: boolean;
 }
 
+export function getAuthToken(): string | null {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("creditlens_token");
+  }
+  return null;
+}
+
+export function setAuthToken(token: string | null): void {
+  if (typeof window !== "undefined") {
+    if (token) {
+      localStorage.setItem("creditlens_token", token);
+    } else {
+      localStorage.removeItem("creditlens_token");
+    }
+  }
+}
+
 export async function fetchApi<T>(
   endpoint: string,
   options?: RequestInit,
@@ -14,16 +31,35 @@ export async function fetchApi<T>(
 ): Promise<T> {
   try {
     const url = `${API_BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+    const token = getAuthToken();
+
+    const headers: Record<string, string> = {
+      ...(options?.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+      ...(options?.headers as Record<string, string> || {}),
+    };
+
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
     const response = await fetch(url, {
       ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-      },
+      headers,
     });
 
+    if (response.status === 401) {
+      // Clear token on authentication expiry
+      setAuthToken(null);
+      if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
+        // Option to redirect to login if session expired
+      }
+      throw new Error("Authentication required. Please log in.");
+    }
+
     if (!response.ok) {
-      throw new Error(`API error ${response.status}: ${response.statusText}`);
+      const errorJson = await response.json().catch(() => null);
+      const errorMsg = errorJson?.detail || errorJson?.message || `API error ${response.status}: ${response.statusText}`;
+      throw new Error(errorMsg);
     }
 
     const result: ApiResponse<T> = await response.json();

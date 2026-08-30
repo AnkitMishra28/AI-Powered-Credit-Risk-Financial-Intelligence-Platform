@@ -1,21 +1,29 @@
+"""
+CreditLens Database Models Package
+Exports all persistent SQLAlchemy entities for user isolation, financial intelligence, and RAG.
+"""
 from app.db.base import Base
 from app.models.user import User
-from app.models.financial_profile import FinancialProfile
+from app.models.statement import Statement
 from app.models.transaction import Transaction
+from app.models.credit_health import CreditHealthSnapshot
+from app.models.risk_prediction import RiskPredictionRecord
+from app.models.copilot import CopilotQueryRecord
+from app.models.financial_profile import FinancialProfile
 from app.models.loan import Loan
-from app.models.credit_metric import CreditMetric
-from app.models.risk_prediction import RiskPrediction
 from app.models.document import Document, DocumentChunk
 from app.models.insight import Insight
 
 __all__ = [
     "Base",
     "User",
-    "FinancialProfile",
+    "Statement",
     "Transaction",
+    "CreditHealthSnapshot",
+    "RiskPredictionRecord",
+    "CopilotQueryRecord",
+    "FinancialProfile",
     "Loan",
-    "CreditMetric",
-    "RiskPrediction",
     "Document",
     "DocumentChunk",
     "Insight",

@@ -1,33 +1,31 @@
+"""
+CreditLens Risk Prediction Model
+Persists calibrated XGBoost credit risk predictions and TreeSHAP explainability outputs.
+"""
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import String, Numeric, DateTime, ForeignKey, JSON
-from app.db.base import Base
+from sqlalchemy import String, Integer, Float, DateTime, ForeignKey, JSON, func
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Optional, Dict, Any, List
+from app.db.base import Base
 
-class RiskPrediction(Base):
-    """
-    Stores structured outputs from Scikit-Learn/XGBoost/LightGBM risk classifiers & SHAP explainers.
-    """
+class RiskPredictionRecord(Base):
     __tablename__ = "risk_predictions"
 
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    prediction_date: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     
-    # Classification category
-    risk_category: Mapped[str] = mapped_column(String(50), nullable=False) # LOW_RISK, MEDIUM_RISK, HIGH_RISK
-    model_confidence: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False) # e.g. 87.00%
+    risk_category: Mapped[str] = mapped_column(String(50), nullable=False) # LOW RISK, MEDIUM RISK, HIGH RISK
+    confidence_percentage: Mapped[float] = mapped_column(Float, nullable=False)
+    low_risk_probability: Mapped[float] = mapped_column(Float, nullable=False)
+    medium_risk_probability: Mapped[float] = mapped_column(Float, nullable=False)
+    high_risk_probability: Mapped[float] = mapped_column(Float, nullable=False)
     
-    # Probability distribution
-    prob_low_risk: Mapped[float] = mapped_column(Numeric(5, 4), nullable=False) # e.g. 0.82
-    prob_medium_risk: Mapped[float] = mapped_column(Numeric(5, 4), nullable=False) # e.g. 0.14
-    prob_high_risk: Mapped[float] = mapped_column(Numeric(5, 4), nullable=False) # e.g. 0.04
+    top_positive_factors: Mapped[Optional[List[str]]] = mapped_column(JSON, nullable=True)
+    risk_factors: Mapped[Optional[List[str]]] = mapped_column(JSON, nullable=True)
+    shap_explanations: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(JSON, nullable=True)
     
-    # Positive drivers & Risk flags (structured extracted features)
-    top_positive_factors: Mapped[List[str]] = mapped_column(JSON, nullable=False, default=list)
-    risk_factors: Mapped[List[str]] = mapped_column(JSON, nullable=False, default=list)
-    
-    # SHAP feature contributions (feature_name -> shap_value)
-    shap_values: Mapped[Optional[Dict[str, float]]] = mapped_column(JSON, nullable=True)
-    model_version: Mapped[str] = mapped_column(String(50), default="creditlens-risk-xgb-v1")
+    model_version: Mapped[str] = mapped_column(String(100), nullable=False, default="creditlens-risk-xgb-v1.2")
+    evaluated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
+    # Relationships
     user: Mapped["User"] = relationship("User", back_populates="risk_predictions")

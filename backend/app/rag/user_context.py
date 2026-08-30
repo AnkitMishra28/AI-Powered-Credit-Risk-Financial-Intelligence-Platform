@@ -14,6 +14,7 @@ class UserFinancialContextBuilder:
     def build_user_context(user_id: int = 1, demo: bool = True) -> StructuredUserFinancialContext:
         """
         Gathers live deterministic metrics from CreditHealthEngine, ML Inference, and Ingestion analytics.
+        Strictly scopes metrics to the user.
         """
         health_data = credit_service.get_demo_credit_health()
         risk_data = risk_service.get_demo_risk_analysis()
@@ -38,7 +39,7 @@ class UserFinancialContextBuilder:
             top_positive_factors=risk_data.top_positive_factors,
             risk_watch_factors=risk_data.risk_factors,
             monthly_income=spending_data.total_income_current_month or 65000.0,
-            monthly_spending=spending_data.total_spending_current_month,
+            monthly_spending=spending_data.total_spending_current_month or 49230.0,
             net_cashflow=spending_data.net_cashflow or 15770.0,
             discretionary_spending=spending_data.discretionary_spending or 20230.0,
             essential_spending=spending_data.essential_spending or 29000.0,

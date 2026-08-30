@@ -1,8 +1,10 @@
 """
 CreditLens Spending Intelligence Service
-Connects transaction ingestion analytics to FastAPI spending endpoints.
+Connects database and transaction ingestion analytics to FastAPI spending endpoints.
 """
 from typing import List, Optional
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.schemas.spending import (
     SpendingIntelligenceResponse,
     CategorySpend,
@@ -12,6 +14,8 @@ from app.schemas.spending import (
     RecurringPaymentItem
 )
 from app.ingestion.service import ingestion_service
+from app.db.repositories.spending_repo import spending_repo
+from app.ingestion.analytics import calculate_spending_analytics
 
 CATEGORY_COLORS = {
     "Food & Dining": "#10B981",
@@ -31,12 +35,34 @@ CATEGORY_COLORS = {
 
 class SpendingIntelligenceService:
     @staticmethod
+    async def get_user_spending_intelligence_async(
+        session: AsyncSession,
+        user_id: int = 1,
+        demo: bool = False
+    ) -> SpendingIntelligenceResponse:
+        """
+        Calculates real dynamic spending intelligence from persisted user transactions in PostgreSQL/SQLite,
+        or provides demo profile when explicitly requested.
+        """
+        if demo and user_id == 1:
+            raw = calculate_spending_analytics(ingestion_service.get_demo_transactions(), is_demo=True)
+        else:
+            raw = await spending_repo.get_user_spending_intelligence(session, user_id)
+            if raw.total_transactions_count == 0 and demo:
+                raw = calculate_spending_analytics(ingestion_service.get_demo_transactions(), is_demo=True)
+
+        return SpendingIntelligenceService._format_response(raw)
+
+    @staticmethod
     def get_spending_intelligence(user_id: int = 1, demo: bool = False) -> SpendingIntelligenceResponse:
         """
-        Calculates dynamic spending intelligence from uploaded statements, or provides demo profile.
+        Synchronous helper calculating spending intelligence for demo/RAG contexts.
         """
-        raw = ingestion_service.get_spending_analytics(user_id=user_id, demo=demo)
+        raw = calculate_spending_analytics(ingestion_service.get_demo_transactions(), is_demo=demo)
+        return SpendingIntelligenceService._format_response(raw)
 
+    @staticmethod
+    def _format_response(raw) -> SpendingIntelligenceResponse:
         categories = [
             CategorySpend(
                 category=c.category,

@@ -13,6 +13,12 @@ async def lifespan(app: FastAPI):
     # Startup
     setup_logging()
     logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION} [{settings.ENVIRONMENT}]")
+    try:
+        from app.db.session import init_db
+        await init_db()
+        logger.info("Database schema initialized and verified.")
+    except Exception as e:
+        logger.warning(f"Database initialization deferred or offline: {e}")
     yield
     # Shutdown
     logger.info(f"Shutting down {settings.PROJECT_NAME}")

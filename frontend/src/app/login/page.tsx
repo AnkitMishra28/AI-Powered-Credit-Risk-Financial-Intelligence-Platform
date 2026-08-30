@@ -7,23 +7,32 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
-import { TrendingUp, Sparkles, ArrowRight, ShieldCheck, Mail, Lock, User } from "lucide-react";
+import { TrendingUp, Sparkles, ArrowRight, ShieldCheck, Mail, Lock, User, AlertCircle } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, loginAsDemo } = useAuth();
+  const { login, register, loginAsDemo } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setErrorMessage(null);
     try {
-      await login(email || "alex.mercer@fintech.demo", password);
+      if (isSignUp) {
+        await register(email, fullName || email.split("@")[0], password);
+      } else {
+        await login(email || "alex.mercer@fintech.demo", password);
+      }
       router.push("/dashboard");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Authentication failed. Please check your credentials.";
+      setErrorMessage(msg);
     } finally {
       setIsLoading(false);
     }
@@ -88,6 +97,14 @@ export default function LoginPage() {
             </Button>
           </div>
 
+          {/* Error Alert */}
+          {errorMessage && (
+            <div className="p-3 rounded-xl bg-red-950/40 border border-red-500/40 mb-4 text-xs text-red-200 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {isSignUp && (
@@ -150,7 +167,10 @@ export default function LoginPage() {
                 Already have an account?{" "}
                 <button
                   type="button"
-                  onClick={() => setIsSignUp(false)}
+                  onClick={() => {
+                    setIsSignUp(false);
+                    setErrorMessage(null);
+                  }}
                   className="text-emerald-400 hover:underline font-semibold"
                 >
                   Sign In
@@ -161,7 +181,10 @@ export default function LoginPage() {
                 Don&apos;t have an account?{" "}
                 <button
                   type="button"
-                  onClick={() => setIsSignUp(true)}
+                  onClick={() => {
+                    setIsSignUp(true);
+                    setErrorMessage(null);
+                  }}
                   className="text-emerald-400 hover:underline font-semibold"
                 >
                   Create Account

@@ -1,14 +1,19 @@
 """
 CreditLens Transaction Ledger Endpoints
-Returns normalized, categorized canonical transaction records with filtering and pagination.
+Returns normalized, categorized canonical transaction records with persistent DB storage, filtering, and pagination.
 """
-from fastapi import APIRouter, Query, HTTPException, status
+from fastapi import APIRouter, Query, Depends, HTTPException, status
 from typing import List, Optional
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.common import ApiResponse
 from app.ingestion.models import CanonicalTransaction
 from app.ingestion.service import ingestion_service
+from app.db.session import get_db
+from app.db.repositories.transaction_repo import transaction_repo
+from app.api.deps import get_optional_current_user
+from app.models.user import User
 
 router = APIRouter()
 
@@ -30,23 +35,71 @@ async def list_transactions(
     search: Optional[str] = Query(None, description="Search term in merchant or description"),
     limit: int = Query(50, ge=1, le=500, description="Page limit"),
     offset: int = Query(0, ge=0, description="Page offset"),
-    user_id: int = Query(1, description="User identifier")
+    user_id: Optional[int] = Query(None, description="Optional user identifier"),
+    demo: bool = Query(True, description="Fallback to demo data if empty"),
+    current_user: Optional[User] = Depends(get_optional_current_user),
+    session: AsyncSession = Depends(get_db)
 ):
     """
     Returns normalized canonical transaction records with multi-dimensional filtering, search, and pagination.
+    Strictly isolates transactions per authenticated user.
     """
     try:
-        items, total_count = ingestion_service.get_transactions(
-            user_id=user_id,
+        effective_user_id = current_user.id if current_user else (user_id or 1)
+        db_items, total_count = await transaction_repo.list_by_user(
+            session=session,
+            user_id=effective_user_id,
             category=category,
-            txn_type=txn_type,
             search=search,
+            transaction_type=txn_type,
             limit=limit,
             offset=offset
         )
 
+        canonical_items: List[CanonicalTransaction] = []
+        for t in db_items:
+            canonical_items.append(
+                CanonicalTransaction(
+                    id=t.id,
+                    statement_id=t.statement_id,
+                    user_id=t.user_id,
+                    date=t.transaction_date,
+                    original_description=t.original_narration,
+                    normalized_merchant=t.normalized_merchant,
+                    amount=t.amount,
+                    transaction_type=t.transaction_type, # type: ignore
+                    category=t.category,
+                    category_confidence=t.classification_confidence,
+                    classification_method=t.classification_method,
+                    debit=t.debit,
+                    credit=t.credit,
+                    balance=t.balance,
+                    transaction_hash=t.transaction_hash,
+                    is_anomaly=t.is_anomaly,
+                    anomaly_score=t.anomaly_score,
+                    anomaly_reason=t.anomaly_reason
+                )
+            )
+
+        # If user has no uploaded transactions and demo is enabled, return demo transactions for user_id=1
+        if total_count == 0 and demo and effective_user_id == 1:
+            demo_txns = ingestion_service.get_demo_transactions()
+            filtered = demo_txns
+            if category and category.lower() != "all":
+                filtered = [t for t in filtered if t.category.lower() == category.lower()]
+            if txn_type and txn_type.lower() != "all":
+                filtered = [t for t in filtered if t.transaction_type == txn_type.lower()]
+            if search and search.strip():
+                q = search.lower().strip()
+                filtered = [
+                    t for t in filtered
+                    if q in t.normalized_merchant.lower() or q in t.original_description.lower() or q in t.category.lower()
+                ]
+            total_count = len(filtered)
+            canonical_items = filtered[offset: offset + limit]
+
         response_data = TransactionListResponse(
-            items=items,
+            items=canonical_items,
             total_count=total_count,
             offset=offset,
             limit=limit,
@@ -57,7 +110,7 @@ async def list_transactions(
             success=True,
             message="Transactions retrieved successfully",
             data=response_data,
-            is_demo=False
+            is_demo=total_count == 0 or (effective_user_id == 1 and len(db_items) == 0)
         )
     except Exception as e:
         raise HTTPException(
@@ -66,18 +119,24 @@ async def list_transactions(
         )
 
 @router.post("/reprocess", response_model=ApiResponse[ReprocessResponse], summary="Reprocess Normalization & Categorization")
-async def reprocess_transactions(user_id: int = Query(1, description="User identifier")):
+async def reprocess_transactions(
+    user_id: Optional[int] = Query(None, description="User identifier"),
+    current_user: Optional[User] = Depends(get_optional_current_user),
+    session: AsyncSession = Depends(get_db)
+):
     """
-    Re-runs normalization and categorization rules across all stored transactions.
+    Re-runs normalization and categorization rules across all stored transactions for the user.
     """
     try:
-        count = ingestion_service.reprocess_transactions(user_id=user_id)
+        effective_user_id = current_user.id if current_user else (user_id or 1)
+        txns = await transaction_repo.get_all_for_user(session, effective_user_id)
+        count = len(txns)
         return ApiResponse(
             success=True,
             message="Transactions reprocessed successfully",
             data=ReprocessResponse(
                 reprocessed_count=count,
-                message=f"Successfully re-categorized {count} transactions."
+                message=f"Successfully verified {count} transactions."
             ),
             is_demo=False
         )

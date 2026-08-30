@@ -50,8 +50,12 @@ class CanonicalTransaction(BaseModel):
     category_confidence: float = Field(0.90, ge=0.0, le=1.0, description="Classification confidence")
     classification_method: ClassificationMethod = Field("merchant_rule", description="Method used for classification")
     balance: Optional[float] = Field(None, description="Running ledger balance if present")
+    debit: Optional[float] = None
+    credit: Optional[float] = None
+    transaction_hash: Optional[str] = None
     source: str = Field("csv", description="csv, pdf, manual, or demo")
     is_anomaly: bool = Field(False, description="Flagged by statistical anomaly detector")
+    anomaly_score: Optional[float] = None
     anomaly_reason: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 

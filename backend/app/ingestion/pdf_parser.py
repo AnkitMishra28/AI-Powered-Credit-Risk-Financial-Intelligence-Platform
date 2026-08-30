@@ -4,6 +4,7 @@ Deterministically extracts structured transaction ledgers from bank and credit c
 """
 import io
 import re
+import hashlib
 from typing import List, Optional
 from pypdf import PdfReader
 
@@ -118,6 +119,7 @@ def parse_pdf_statement(
         if fp in seen_fingerprints:
             continue
         seen_fingerprints.add(fp)
+        t_hash = hashlib.sha256(fp.encode("utf-8")).hexdigest()
 
         txn = CanonicalTransaction(
             statement_id=statement_id,
@@ -130,6 +132,7 @@ def parse_pdf_statement(
             category_confidence=confidence,
             classification_method=method,
             balance=balance,
+            transaction_hash=t_hash,
             source="pdf"
         )
         parsed_txns.append(txn)

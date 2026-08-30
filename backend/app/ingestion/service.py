@@ -1,11 +1,13 @@
 """
 CreditLens Financial Ingestion & Statement Intelligence Service
 Coordinates statement upload validation, CSV/PDF parsing, transaction normalization,
-categorization, anomaly detection, recurring detection, and deterministic analytics.
+categorization, anomaly detection, recurring detection, and persistent database storage.
 """
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Set
 from datetime import datetime
 import uuid
+import hashlib
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ingestion.models import (
     CanonicalTransaction,
@@ -21,14 +23,16 @@ from app.ingestion.pdf_parser import parse_pdf_statement
 from app.ingestion.normalizer import normalize_merchant
 from app.ingestion.categorization import categorize_transaction
 from app.ingestion.analytics import calculate_spending_analytics
+from app.db.repositories.statement_repo import statement_repo
+from app.db.repositories.transaction_repo import transaction_repo
+from app.db.repositories.spending_repo import spending_repo
+from app.models.transaction import Transaction as TransactionORM
 
 class IngestionService:
     """
     Central statement ingestion, persistence, and spending intelligence service.
     """
     def __init__(self):
-        self._statements: Dict[str, StatementSummary] = {}
-        self._transactions: List[CanonicalTransaction] = []
         self._seed_demo_transactions()
 
     def _seed_demo_transactions(self):
@@ -60,6 +64,7 @@ class IngestionService:
         for date_str, desc, amt, txn_type in demo_raw:
             merchant = normalize_merchant(desc)
             cat, conf, method = categorize_transaction(merchant, desc, txn_type)
+            h = hashlib.sha256(f"{date_str}:{amt}:{desc}".encode("utf-8")).hexdigest()
             txn = CanonicalTransaction(
                 id=f"demo_txn_{uuid.uuid4().hex[:8]}",
                 statement_id="demo_statement_001",
@@ -73,148 +78,139 @@ class IngestionService:
                 category_confidence=conf,
                 classification_method=method,
                 balance=78500.0 if txn_type == "credit" else 74300.0,
+                transaction_hash=h,
                 source="demo"
             )
             self._demo_transactions.append(txn)
 
-    def process_statement(
+    async def process_statement_async(
         self,
+        session: AsyncSession,
         file_bytes: bytes,
         filename: str,
         content_type: str = "",
         user_id: int = 1
     ) -> Tuple[StatementSummary, List[CanonicalTransaction]]:
         """
-        Executes end-to-end ingestion pipeline:
-        Validation -> CSV/PDF Extraction -> Normalization -> Categorization -> Storage.
+        Executes end-to-end ingestion pipeline with persistent database storage:
+        Validation -> CSV/PDF Extraction -> Normalization -> Categorization -> Deduplication -> DB Storage.
         """
         clean_filename, file_type = validate_statement_upload(filename, file_bytes, content_type)
-
+        file_hash = hashlib.sha256(file_bytes).hexdigest()
         statement_id = str(uuid.uuid4())
-        summary = StatementSummary(
-            id=statement_id,
+
+        # 1. Create DB statement record
+        db_statement = await statement_repo.create_statement(
+            session=session,
+            statement_id=statement_id,
             user_id=user_id,
             filename=clean_filename,
-            file_type=file_type, # type: ignore
+            file_type=file_type,
             file_size_bytes=len(file_bytes),
-            uploaded_at=datetime.utcnow(),
-            status="processing"
+            file_hash=file_hash
         )
 
         try:
+            # 2. Parse file deterministically
             if file_type == "csv":
                 parsed = parse_csv_statement(file_bytes, statement_id=statement_id)
             else:
                 parsed = parse_pdf_statement(file_bytes, statement_id=statement_id)
 
+            # Assign user_id
+            for p in parsed:
+                p.user_id = user_id
+
+            # 3. Deduplicate transactions for this user
+            all_hashes = [t.transaction_hash for t in parsed if t.transaction_hash]
+            existing_hashes = await transaction_repo.get_existing_hashes(session, user_id, all_hashes)
+
+            unique_parsed = [t for t in parsed if t.transaction_hash not in existing_hashes]
+
+            # 4. Persist new transactions into DB
+            orm_txns: List[TransactionORM] = []
+            for t in unique_parsed:
+                orm_txns.append(
+                    TransactionORM(
+                        id=t.id,
+                        user_id=user_id,
+                        statement_id=statement_id,
+                        transaction_date=t.date,
+                        original_narration=t.original_description,
+                        normalized_merchant=t.normalized_merchant,
+                        category=t.category,
+                        classification_method=t.classification_method,
+                        classification_confidence=t.category_confidence,
+                        debit=t.amount if t.transaction_type == "debit" else 0.0,
+                        credit=t.amount if t.transaction_type == "credit" else 0.0,
+                        amount=t.amount,
+                        transaction_type=t.transaction_type,
+                        balance=t.balance,
+                        transaction_hash=t.transaction_hash or t.id,
+                        is_anomaly=t.is_anomaly,
+                        anomaly_score=t.anomaly_score,
+                        anomaly_reason=t.anomaly_reason
+                    )
+                )
+
+            if orm_txns:
+                await transaction_repo.add_transactions(session, orm_txns)
+
+            # 5. Compute statement totals
             total_debits = sum(t.amount for t in parsed if t.transaction_type == "debit")
             total_credits = sum(t.amount for t in parsed if t.transaction_type == "credit")
+            net_cf = total_credits - total_debits
 
-            summary.status = "completed"
-            summary.transaction_count = len(parsed)
-            summary.total_debits = round(total_debits, 2)
-            summary.total_credits = round(total_credits, 2)
+            dates = [t.date for t in parsed if t.date]
+            d_start = min(dates) if dates else None
+            d_end = max(dates) if dates else None
 
-            # Store in registry
-            self._statements[statement_id] = summary
-            self._transactions.extend(parsed)
+            # 6. Update statement record in DB
+            await statement_repo.update_statement_metrics(
+                session=session,
+                statement_id=statement_id,
+                user_id=user_id,
+                transaction_count=len(unique_parsed),
+                total_inflows=total_credits,
+                total_outflows=total_debits,
+                net_cashflow=net_cf,
+                date_range_start=d_start,
+                date_range_end=d_end,
+                status="completed"
+            )
 
-            return summary, parsed
+            summary = StatementSummary(
+                id=statement_id,
+                user_id=user_id,
+                filename=clean_filename,
+                file_type=file_type, # type: ignore
+                file_size_bytes=len(file_bytes),
+                uploaded_at=db_statement.uploaded_at,
+                status="completed",
+                transaction_count=len(unique_parsed),
+                total_debits=round(total_debits, 2),
+                total_credits=round(total_credits, 2)
+            )
+
+            return summary, unique_parsed
 
         except Exception as e:
-            summary.status = "failed"
-            summary.error_message = str(e)
-            self._statements[statement_id] = summary
+            await statement_repo.update_statement_metrics(
+                session=session,
+                statement_id=statement_id,
+                user_id=user_id,
+                transaction_count=0,
+                total_inflows=0.0,
+                total_outflows=0.0,
+                net_cashflow=0.0,
+                date_range_start=None,
+                date_range_end=None,
+                status="failed",
+                error_message=str(e)
+            )
             raise IngestionValidationError(f"Statement processing failed: {str(e)}")
 
-    def get_statements(self, user_id: int = 1) -> List[StatementSummary]:
-        """Returns all uploaded statements for the user."""
-        return list(self._statements.values())
-
-    def get_statement_by_id(self, statement_id: str) -> Optional[StatementSummary]:
-        """Retrieves a specific statement summary."""
-        return self._statements.get(statement_id)
-
-    def get_transactions(
-        self,
-        user_id: int = 1,
-        category: Optional[str] = None,
-        txn_type: Optional[str] = None,
-        search: Optional[str] = None,
-        limit: int = 50,
-        offset: int = 0,
-        use_demo_if_empty: bool = True
-    ) -> Tuple[List[CanonicalTransaction], int]:
-        """
-        Returns paginated, filterable canonical transactions.
-        """
-        source_txns = self._transactions if len(self._transactions) > 0 else (self._demo_transactions if use_demo_if_empty else [])
-
-        filtered = source_txns
-
-        if category and category.lower() != "all":
-            filtered = [t for t in filtered if t.category.lower() == category.lower()]
-
-        if txn_type and txn_type.lower() != "all":
-            filtered = [t for t in filtered if t.transaction_type == txn_type.lower()]
-
-        if search and search.strip():
-            q = search.lower().strip()
-            filtered = [
-                t for t in filtered
-                if q in t.normalized_merchant.lower()
-                or q in t.original_description.lower()
-                or q in t.category.lower()
-            ]
-
-        # Sort reverse chronological
-        filtered_sorted = sorted(filtered, key=lambda x: x.date, reverse=True)
-        total_count = len(filtered_sorted)
-        paginated = filtered_sorted[offset: offset + limit]
-
-        return paginated, total_count
-
-    def get_spending_analytics(
-        self,
-        user_id: int = 1,
-        demo: bool = False
-    ) -> SpendingIntelligenceResponse:
-        """
-        Calculates spending intelligence from uploaded statements, or falls back cleanly to demo data.
-        """
-        if len(self._transactions) > 0 and not demo:
-            return calculate_spending_analytics(self._transactions, is_demo=False)
-        else:
-            return calculate_spending_analytics(self._demo_transactions, is_demo=True)
-
-    def get_category_breakdown(self, user_id: int = 1) -> List[CategorySpending]:
-        analytics = self.get_spending_analytics(user_id=user_id)
-        return analytics.categories
-
-    def get_anomalies(self, user_id: int = 1) -> List[SpendingAnomaly]:
-        analytics = self.get_spending_analytics(user_id=user_id)
-        return analytics.anomalies
-
-    def get_recurring_payments(self, user_id: int = 1) -> List[RecurringPayment]:
-        analytics = self.get_spending_analytics(user_id=user_id)
-        return analytics.recurring_payments
-
-    def reprocess_transactions(self, user_id: int = 1) -> int:
-        """
-        Re-executes merchant normalization and categorization across all stored transactions.
-        """
-        count = 0
-        for txn in self._transactions:
-            txn.normalized_merchant = normalize_merchant(txn.original_description)
-            cat, conf, method = categorize_transaction(
-                txn.normalized_merchant,
-                txn.original_description,
-                txn.transaction_type
-            )
-            txn.category = cat
-            txn.category_confidence = conf
-            txn.classification_method = method
-            count += 1
-        return count
+    def get_demo_transactions(self) -> List[CanonicalTransaction]:
+        return self._demo_transactions
 
 ingestion_service = IngestionService()
