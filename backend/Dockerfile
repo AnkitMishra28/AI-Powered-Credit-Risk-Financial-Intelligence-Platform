@@ -40,9 +40,9 @@ COPY --chown=creditlens:creditlens . /app
 
 USER creditlens
 
-EXPOSE 8000
+EXPOSE 10000
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8000/api/v1/health/live || exit 1
+    CMD curl -f http://localhost:10000/api/v1/health/live || exit 1
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--no-access-log"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000} --workers 2 --no-access-log"]
