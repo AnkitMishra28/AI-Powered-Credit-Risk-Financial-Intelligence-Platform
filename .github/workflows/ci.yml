@@ -11,6 +11,32 @@ jobs:
     name: Backend Validation (Python 3.11)
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgrespassword
+          POSTGRES_DB: creditlens
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d creditlens"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgrespassword@localhost:5432/creditlens
+      POSTGRES_SERVER: localhost
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: creditlens
+      POSTGRES_PORT: 5432
+      ENVIRONMENT: test
+      JWT_SECRET_KEY: ci-only-creditlens-secret-key-32chars-min
+      GEMINI_API_KEY: ""
+
     defaults:
       run:
         working-directory: ./backend
@@ -68,7 +94,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: './frontend/package.json'
+          cache-dependency-path: './frontend/package-lock.json'
 
       - name: Install Frontend Dependencies
         run: |
