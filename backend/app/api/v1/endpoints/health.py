@@ -14,6 +14,9 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.ml.inference.service import ARTIFACTS_DIR, ml_service
 from app.rag.vector_store import vector_store
+import logging
+
+logger = logging.getLogger("creditlens.health")
 
 router = APIRouter()
 
@@ -60,7 +63,12 @@ async def readiness_probe(response: Response, session: AsyncSession = Depends(ge
             checks["database"] = {"status": "unhealthy", "error": "Unexpected query result"}
             is_ready = False
     except Exception as e:
-        checks["database"] = {"status": "unhealthy", "error": "Database unreachable"}
+        logger.error(f"Readiness probe database connection failed [{e.__class__.__name__}]: {e}")
+        checks["database"] = {
+            "status": "unhealthy",
+            "error": "Database unreachable",
+            "error_type": e.__class__.__name__
+        }
         is_ready = False
 
     # 2. ML Artifacts Check

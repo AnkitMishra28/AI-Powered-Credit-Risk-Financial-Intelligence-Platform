@@ -39,7 +39,7 @@ from datetime import timedelta
 from fastapi.testclient import TestClient
 from app.main import app
 from app.db.session import init_db
-from app.core.config import settings
+from app.core.config import settings, normalize_database_url
 from app.core.security import create_access_token
 from app.core.rate_limiter import rate_limiter
 from app.rag.document_loader import load_knowledge_documents
@@ -474,6 +474,55 @@ def test_copilot_out_of_scope():
     assert "couldn't find" in payload["data"]["response"].lower() or "knowledge base" in payload["data"]["response"].lower()
     print("[PASS] POST /api/v1/copilot/query (Out-of-Scope Guardrail) passed")
 
+def test_database_url_normalization():
+    # a. postgresql:// with sslmode=require
+    url_a = "postgresql://user:password@ep-dry-pond-12345.us-east-2.aws.neon.tech/creditlens?sslmode=require"
+    norm_a = normalize_database_url(url_a)
+    assert norm_a == "postgresql+asyncpg://user:password@ep-dry-pond-12345.us-east-2.aws.neon.tech/creditlens?ssl=require"
+
+    # b. postgresql+asyncpg:// with sslmode=require
+    url_b = "postgresql+asyncpg://user:password@ep-dry-pond-12345.us-east-2.aws.neon.tech/creditlens?sslmode=require"
+    norm_b = normalize_database_url(url_b)
+    assert norm_b == "postgresql+asyncpg://user:password@ep-dry-pond-12345.us-east-2.aws.neon.tech/creditlens?ssl=require"
+
+    # c. sslmode conversion variants (verify-full and verify-ca)
+    url_c1 = "postgresql://user:pass@host/db?sslmode=verify-full"
+    assert normalize_database_url(url_c1) == "postgresql+asyncpg://user:pass@host/db?ssl=verify-full"
+    url_c2 = "postgresql://user:pass@host/db?sslmode=verify-ca"
+    assert normalize_database_url(url_c2) == "postgresql+asyncpg://user:pass@host/db?ssl=verify-ca"
+
+    # d, e, f, g. Removal of channel_binding, gssencmode, target_session_attrs & preservation of unrelated query params
+    url_defg = (
+        "postgresql://user:pass@host/db?"
+        "sslmode=require&channel_binding=disable&gssencmode=disable&"
+        "target_session_attrs=read-write&application_name=creditlens_prod&statement_cache_size=0"
+    )
+    norm_defg = normalize_database_url(url_defg)
+    assert "channel_binding" not in norm_defg
+    assert "gssencmode" not in norm_defg
+    assert "target_session_attrs" not in norm_defg
+    assert "ssl=require" in norm_defg
+    assert "application_name=creditlens_prod" in norm_defg
+    assert "statement_cache_size=0" in norm_defg
+    assert norm_defg.startswith("postgresql+asyncpg://")
+
+    # h. URLs without query parameters
+    url_h = "postgresql://user:pass@ep-dry-pond-12345.us-east-2.aws.neon.tech/creditlens"
+    assert normalize_database_url(url_h) == "postgresql+asyncpg://user:pass@ep-dry-pond-12345.us-east-2.aws.neon.tech/creditlens"
+
+    # i. postgres:// scheme
+    url_i = "postgres://user:pass@ep-dry-pond-12345.us-east-2.aws.neon.tech/creditlens?sslmode=require"
+    assert normalize_database_url(url_i) == "postgresql+asyncpg://user:pass@ep-dry-pond-12345.us-east-2.aws.neon.tech/creditlens?ssl=require"
+
+    # j. SQLite fallback
+    url_j = "sqlite:///./creditlens.db"
+    assert normalize_database_url(url_j) == "sqlite+aiosqlite:///./creditlens.db"
+
+    # k. None / Empty
+    assert normalize_database_url(None) is None
+    assert normalize_database_url("") is None
+    print("[PASS] AsyncPG DATABASE_URL & Neon SSL Parameter Normalization passed")
+
 def test_rate_limiter_mechanism():
     rate_limiter.reset()
     key = "test_client_ip:test_route"
@@ -489,6 +538,7 @@ def test_rate_limiter_mechanism():
 if __name__ == "__main__":
     print("==========================================================================")
     print("Starting CreditLens Phase 8 Release Engineering & Full Test Suite...\n")
+    test_database_url_normalization()
     test_db_initialization()
     test_root()
     test_health_and_probes()
