@@ -94,11 +94,11 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: './frontend/package-lock.json'
+          cache-dependency-path: 'frontend/package-lock.json'
 
       - name: Install Frontend Dependencies
         run: |
-          npm ci
+          npm ci || (echo "=== NPM ERROR LOG ===" && (cat /home/runner/.npm/_logs/*.log 2>/dev/null || cat ~/.npm/_logs/*.log 2>/dev/null || true) && exit 1)
 
       - name: Run ESLint
         run: |
