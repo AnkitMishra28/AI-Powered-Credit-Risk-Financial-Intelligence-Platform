@@ -25,7 +25,7 @@ export default function RiskAnalysisPage() {
         subtitle="Machine learning multi-class risk classification, multi-tier probability distributions, and TreeSHAP feature attributions."
         badge={
           <Badge variant="emerald" size="sm" showDot>
-            LOW RISK (82% Prob)
+            {riskAnalysis.riskCategory} ({Math.round(riskAnalysis.probabilityDistribution.lowRisk <= 1 ? riskAnalysis.probabilityDistribution.lowRisk * 100 : riskAnalysis.probabilityDistribution.lowRisk)}% Prob)
           </Badge>
         }
       />

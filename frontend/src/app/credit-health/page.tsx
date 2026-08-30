@@ -27,7 +27,7 @@ export default function CreditHealthPage() {
         subtitle="Proprietary CreditLens 0–1000 behavioral health score and deterministic factor attribution."
         badge={
           <Badge variant="emerald" size="sm" showDot>
-            742 / 1000 Healthy
+            {creditHealth.healthScore} / 1000 {creditHealth.scoreTier}
           </Badge>
         }
       />
@@ -97,7 +97,7 @@ export default function CreditHealthPage() {
               Behavioral Factor Diagnostics
             </h2>
             <p className="text-xs text-neutral-400">
-              Weighted components contributing to your aggregate 742 Health Score
+              Weighted components contributing to your aggregate {creditHealth.healthScore} Health Score
             </p>
           </div>
           <span className="text-xs text-neutral-400 font-mono">Sum of factor weights: 100%</span>

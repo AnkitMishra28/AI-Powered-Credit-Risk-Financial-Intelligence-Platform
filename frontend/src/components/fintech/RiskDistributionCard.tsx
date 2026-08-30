@@ -8,11 +8,24 @@ export interface RiskDistributionCardProps {
 }
 
 export function RiskDistributionCard({ riskData }: RiskDistributionCardProps) {
-  const { riskCategory, confidencePercentage, probabilityDistribution, topPositiveFactors, riskFactors } = riskData;
+  const {
+    riskCategory,
+    confidencePercentage,
+    probabilityDistribution,
+    topPositiveFactors,
+    riskFactors
+  } = riskData;
 
-  const lowPct = Math.round(probabilityDistribution.lowRisk * 100);
-  const medPct = Math.round(probabilityDistribution.mediumRisk * 100);
-  const highPct = Math.round(probabilityDistribution.highRisk * 100);
+  const lowVal = probabilityDistribution.lowRisk;
+  const medVal = probabilityDistribution.mediumRisk;
+  const highVal = probabilityDistribution.highRisk;
+
+  const lowPct = Math.round(lowVal <= 1 ? lowVal * 100 : lowVal);
+  const medPct = Math.round(medVal <= 1 ? medVal * 100 : medVal);
+  const highPct = Math.round(highVal <= 1 ? highVal * 100 : highVal);
+
+  const positiveList = topPositiveFactors || [];
+  const watchList = riskFactors || [];
 
   return (
     <Card className="p-6 fintech-card bg-[#0B110D] border-white/10 flex flex-col justify-between h-full">
@@ -96,7 +109,7 @@ export function RiskDistributionCard({ riskData }: RiskDistributionCardProps) {
             Positive Signals
           </span>
           <div className="space-y-1">
-            {topPositiveFactors.slice(0, 2).map((item, idx) => (
+            {positiveList.slice(0, 2).map((item, idx) => (
               <div key={idx} className="flex items-start gap-2 text-neutral-300 leading-snug">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
                 <span className="line-clamp-1">{item}</span>
@@ -110,7 +123,7 @@ export function RiskDistributionCard({ riskData }: RiskDistributionCardProps) {
             Watch Signals
           </span>
           <div className="space-y-1">
-            {riskFactors.slice(0, 2).map((item, idx) => (
+            {watchList.slice(0, 2).map((item, idx) => (
               <div key={idx} className="flex items-start gap-2 text-neutral-300 leading-snug">
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
                 <span className="line-clamp-1">{item}</span>

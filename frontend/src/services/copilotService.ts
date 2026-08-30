@@ -1,14 +1,7 @@
 import { fetchApi } from "./api";
 import { CopilotMessage, CitationSource, GroundingFact } from "@/types";
-
-interface CopilotResponsePayload {
-  response: string;
-  conversation_id: string;
-  timestamp: string;
-  sources: CitationSource[];
-  grounding_facts: GroundingFact[];
-  suggested_followups: string[];
-}
+import { ApiCopilotResponsePayload } from "@/types/api";
+import { mapCopilotResponse } from "./mappers";
 
 export const copilotService = {
   async askQuestion(
@@ -86,7 +79,7 @@ export const copilotService = {
     ];
 
     try {
-      const response = await fetchApi<CopilotResponsePayload>(
+      const raw = await fetchApi<ApiCopilotResponsePayload>(
         "/copilot/query",
         {
           method: "POST",
@@ -95,40 +88,16 @@ export const copilotService = {
             conversation_id: conversationId,
             include_sources: true
           }),
-        },
-        {
-          response: fallbackText,
-          conversation_id: conversationId || "conv-demo-1",
-          timestamp: new Date().toISOString(),
-          sources: fallbackSources,
-          grounding_facts: fallbackGrounding,
-          suggested_followups: fallbackFollowups
         }
       );
 
-      const assistantMsg: CopilotMessage = {
-        id: `msg-${Date.now()}`,
-        sender: "assistant",
-        text: response.response,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        sources: response.sources,
-        groundingFacts: response.grounding_facts,
-        suggestedFollowups: response.suggested_followups,
-        isDemoResponse: true
-      };
-
-      return {
-        message: assistantMsg,
-        sources: response.sources,
-        groundingFacts: response.grounding_facts,
-        suggestedFollowups: response.suggested_followups
-      };
+      return mapCopilotResponse(raw);
     } catch {
       const assistantMsg: CopilotMessage = {
         id: `msg-${Date.now()}`,
         sender: "assistant",
         text: fallbackText,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        timestamp: "Just now",
         sources: fallbackSources,
         groundingFacts: fallbackGrounding,
         suggestedFollowups: fallbackFollowups,

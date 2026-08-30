@@ -74,7 +74,7 @@ export default function DashboardPage() {
           value={riskAnalysis.riskCategory}
           statusBadge={`${riskAnalysis.confidencePercentage}% Conf.`}
           statusVariant="emerald"
-          deltaText="82% Low Risk Prob"
+          deltaText={`${Math.round(riskAnalysis.probabilityDistribution.lowRisk <= 1 ? riskAnalysis.probabilityDistribution.lowRisk * 100 : riskAnalysis.probabilityDistribution.lowRisk)}% Low Risk Prob`}
           deltaType="positive"
           subtitle="Low Default Probability"
           icon={<ShieldCheck className="w-4 h-4 text-emerald-400" />}
