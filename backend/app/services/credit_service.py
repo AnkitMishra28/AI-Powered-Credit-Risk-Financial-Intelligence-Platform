@@ -1,88 +1,121 @@
+"""
+CreditLens Credit Health Service
+Calculates deterministic 0–1000 Credit Health scores and factor attributions.
+"""
 from datetime import datetime
-from typing import Optional
+from typing import Dict, Any, Optional
 from app.schemas.credit_health import CreditHealthResponse, FactorScore, CreditHealthHistoryPoint
+from app.ml.scoring.credit_health_engine import credit_health_engine
 
 class CreditHealthService:
+    """
+    Service layer executing the deterministic Credit Health Scoring engine.
+    """
     @staticmethod
     def get_demo_credit_health() -> CreditHealthResponse:
         """
-        Returns structured demo credit health metrics.
-        In Phase 2, this will calculate dynamic scores via deterministic domain rules & financial pipelines.
+        Runs the deterministic Credit Health calculation engine on the canonical Alex Mercer profile.
         """
+        raw = credit_health_engine.calculate_score(
+            monthly_income=65000.0,
+            credit_limit_total=250000.0,
+            revolving_balance_total=170000.0,
+            total_monthly_emi=8500.0,
+            payment_consistency_ratio=0.94,
+            credit_history_years=4.2,
+            monthly_spending_total=49230.0,
+            spending_average_6mo=50055.0
+        )
+
         factors = [
             FactorScore(
-                factor_id="payment_history",
-                name="Payment History",
-                score=92.0,
-                weight=0.35,
-                status="optimal",
-                description="Consistently paying minimum and full balances on or before due dates.",
-                impact_detail="High positive influence (+140 pts to score baseline)"
-            ),
-            FactorScore(
-                factor_id="credit_utilization",
-                name="Credit Utilization",
-                score=68.0,
-                weight=0.30,
-                status="warning",
-                description="Currently using 68% of available ₹2,50,000 aggregate credit limit.",
-                impact_detail="Revolving ratio above recommended 30% threshold (-35 pts impact)"
-            ),
-            FactorScore(
-                factor_id="debt_to_income",
-                name="Debt-to-Income",
-                score=31.0,
-                weight=0.15,
-                status="good",
-                description="Monthly debt obligations consume ~31% of ₹65,000 declared monthly income.",
-                impact_detail="Within safe borrowing bounds (< 36% standard target)"
-            ),
-            FactorScore(
-                factor_id="repayment_pattern",
-                name="Repayment Pattern",
-                score=94.0,
-                weight=0.10,
-                status="optimal",
-                description="11 consecutive months of zero missed payments across all registered lines.",
-                impact_detail="Demonstrates high reliability for underwriting models"
-            ),
-            FactorScore(
-                factor_id="credit_history",
-                name="Credit History Length",
-                score=71.0,
-                weight=0.05,
-                status="good",
-                description="Oldest active credit line is 4.2 years old with steady tenure.",
-                impact_detail="Adequate seasoning of revolving credit accounts"
-            ),
-            FactorScore(
-                factor_id="recent_spending",
-                name="Recent Spending Velocity",
-                score=76.0,
-                weight=0.05,
-                status="good",
-                description="Monthly spending rate remained within 1.1x of 6-month historical baseline.",
-                impact_detail="Stable cashflow velocity with low volatility"
-            ),
+                factor_id=f["factor_id"],
+                name=f["name"],
+                score=f["score"],
+                weight=f["weight"],
+                status=f["status"],
+                description=f["description"],
+                impact_detail=f["impact_detail"]
+            )
+            for f in raw["factors"]
         ]
 
         history = [
-            CreditHealthHistoryPoint(month="Oct", score=710, utilization=74.0),
-            CreditHealthHistoryPoint(month="Nov", score=718, utilization=72.5),
-            CreditHealthHistoryPoint(month="Dec", score=725, utilization=71.0),
-            CreditHealthHistoryPoint(month="Jan", score=730, utilization=70.0),
-            CreditHealthHistoryPoint(month="Feb", score=724, utilization=75.0),
-            CreditHealthHistoryPoint(month="Mar", score=742, utilization=68.0),
+            CreditHealthHistoryPoint(
+                month=h["month"],
+                score=h["score"],
+                utilization=h["utilization"]
+            )
+            for h in raw["history"]
         ]
 
         return CreditHealthResponse(
-            health_score=742,
-            score_tier="Healthy",
-            score_delta=18,
+            health_score=raw["health_score"],
+            score_tier=raw["score_tier"],
+            score_delta=raw["score_delta"],
             calculation_timestamp=datetime.utcnow(),
             factors=factors,
             history=history,
+            disclaimer=raw["disclaimer"],
             is_demo=True
+        )
+
+    @staticmethod
+    def calculate_custom_score(
+        monthly_income: float,
+        credit_limit_total: float,
+        revolving_balance_total: float,
+        total_monthly_emi: float,
+        payment_consistency_ratio: float = 0.90,
+        credit_history_years: float = 3.0,
+        monthly_spending_total: float = 40000.0,
+        spending_average_6mo: float = 40000.0
+    ) -> CreditHealthResponse:
+        """
+        Calculates a Credit Health Score for custom user financial inputs.
+        """
+        raw = credit_health_engine.calculate_score(
+            monthly_income=monthly_income,
+            credit_limit_total=credit_limit_total,
+            revolving_balance_total=revolving_balance_total,
+            total_monthly_emi=total_monthly_emi,
+            payment_consistency_ratio=payment_consistency_ratio,
+            credit_history_years=credit_history_years,
+            monthly_spending_total=monthly_spending_total,
+            spending_average_6mo=spending_average_6mo
+        )
+
+        factors = [
+            FactorScore(
+                factor_id=f["factor_id"],
+                name=f["name"],
+                score=f["score"],
+                weight=f["weight"],
+                status=f["status"],
+                description=f["description"],
+                impact_detail=f["impact_detail"]
+            )
+            for f in raw["factors"]
+        ]
+
+        history = [
+            CreditHealthHistoryPoint(
+                month=h["month"],
+                score=h["score"],
+                utilization=h["utilization"]
+            )
+            for h in raw["history"]
+        ]
+
+        return CreditHealthResponse(
+            health_score=raw["health_score"],
+            score_tier=raw["score_tier"],
+            score_delta=raw["score_delta"],
+            calculation_timestamp=datetime.utcnow(),
+            factors=factors,
+            history=history,
+            disclaimer=raw["disclaimer"],
+            is_demo=False
         )
 
 credit_health_service = CreditHealthService()

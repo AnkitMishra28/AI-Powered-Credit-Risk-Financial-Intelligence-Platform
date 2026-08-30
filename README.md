@@ -1,19 +1,31 @@
 # CreditLens
 
 > **AI-Powered Credit Risk & Financial Intelligence Platform**  
-> *Transforming complex banking statements, credit lines, and cashflow data into explainable credit health metrics, machine learning risk signals, and verified AI insights.*
+> *Transforming banking statements, credit lines, and cashflow data into explainable credit health metrics, machine learning risk signals, and verified AI insights.*
 
 ---
 
 ## 📌 Project Overview
 
-CreditLens is a full-stack fintech platform designed to bridge the gap between traditional quantitative credit assessment and modern explainable artificial intelligence.
+CreditLens is a production-grade full-stack fintech platform designed to bridge the gap between traditional quantitative credit assessment and modern explainable artificial intelligence.
 
-Unlike generic finance dashboards or simple chatbot wrappers, CreditLens enforces strict separation between **deterministic numerical pipelines** and **generative language models**:
-1. **Mathematical Financial Metrics** (e.g. 68% credit utilization, 31.2% DTI, 94% on-time payment ratio) are calculated by deterministic Python and statistical engines.
-2. **Predictive Credit Risk** is estimated via Scikit-Learn/XGBoost multi-class classifiers with probability distributions (Low, Medium, High Risk) and TreeSHAP explainability attributions.
-3. **Generative Natural-Language Explanations** are synthesized strictly on top of structured facts and verified regulatory documents retrieved via PostgreSQL + pgvector vector search.
-4. **Transparent Governance**: CreditLens explicitly disclaims that it is **NOT CIBIL / Experian** and is designed strictly for financial intelligence, education, and behavioral diagnostics — not regulated credit underwriting or investment advice.
+Unlike generic finance dashboards or simple LLM wrappers, CreditLens enforces strict architectural boundaries:
+
+```
+DETERMINISTIC FINANCIAL LOGIC  ──►  Exact 0–1000 Credit Health Score (Rule-Based & Transparent)
+           │
+           ▼
+MACHINE LEARNING (XGBoost)     ──►  Calibrated Multi-Class Default Risk Probabilities (Low/Med/High)
+           │
+           ▼
+EXPLAINABILITY (TreeSHAP)      ──►  Deterministic Feature Attribution Deltas & Positive/Watch Signals
+           │
+           ▼
+RAG KNOWLEDGE RETRIEVAL        ──►  pgvector Semantic Vector Search over Regulatory Directives (RBI)
+           │
+           ▼
+LLM SYNTHESIS & INSIGHTS       ──►  Natural Language Grounded Explanations (Zero Hallucinated Numbers)
+```
 
 ---
 
@@ -35,12 +47,13 @@ Unlike generic finance dashboards or simple chatbot wrappers, CreditLens enforce
             ┌──────────────────────┘               └──────────────────────┐
             ▼                                                             ▼
 ┌───────────────────────────────┐                             ┌───────────────────────────────┐
-│     ML Risk & Anomaly         │                             │         RAG Pipeline          │
-│   (Scikit-learn / XGBoost)    │                             │    (pgvector + Gemini 1.5)    │
+│     ML Risk & Explainability  │                             │         RAG Pipeline          │
+│   (Scikit-learn / XGBoost)    │                             │    (pgvector + Gemini API)    │
 ├───────────────────────────────┤                             ├───────────────────────────────┤
 │ • Feature Engineering Engine  │                             │ • Regulatory Embeddings       │
-│ • Multi-Class Risk Model      │                             │ • Semantic Vector Search      │
-│ • TreeSHAP Explainability     │                             │ • Grounded Fact Prompting     │
+│ • ColumnTransformer Pipeline  │                             │ • Semantic Vector Search      │
+│ • XGBoost Classifier          │                             │ • Grounded Fact Prompting     │
+│ • TreeSHAP Explainability     │                             │ • Verified Document Sources   │
 └───────────────┬───────────────┘                             └───────────────┬───────────────┘
                 │                                                             │
                 └──────────────────────────────┬──────────────────────────────┘
@@ -54,163 +67,162 @@ Unlike generic finance dashboards or simple chatbot wrappers, CreditLens enforce
 
 ---
 
-## 🚀 Current Implementation Status (Phase 1 Complete)
+## 📊 Phase 3: Real Credit Intelligence Engine
 
-| Component | Status | Description |
-| :--- | :--- | :--- |
-| **Design System & Tokens** | ✅ Completed | Deep slate / obsidian fintech design system with emerald/sapphire accents, responsive layouts, accessible typography, and custom UI suite |
-| **Frontend Routes** | ✅ Completed | All 9 primary views: `/`, `/login`, `/onboarding`, `/dashboard`, `/credit-health`, `/risk-analysis`, `/spending`, `/copilot`, `/settings` |
-| **Component Architecture** | ✅ Completed | Reusable cards, score gauges, factor breakdown meters, risk probability distribution, transaction ledger, and source citation panels |
-| **Demo Mode Profile** | ✅ Completed | 1-click Recruiter / Interviewer Demo Mode preloaded with synthetic portfolio metrics (Alex Mercer, ₹65k income, ₹49k spend, 68% util, 742 health score) |
-| **Backend REST Foundation** | ✅ Completed | FastAPI v0.115+ application with `/health`, `/credit-health`, `/risk`, `/spending`, `/copilot`, `/users` endpoints |
-| **Database Architecture** | ✅ Completed | SQLAlchemy 2.0 async models for Users, Profiles, Transactions, Loans, Metrics, Predictions, Documents, Chunks, and Insights |
-| **ML / SHAP Scaffolding** | 🔄 Architecture Ready | Feature extractor, model pipeline interfaces, and explainability containers created (Phase 2 connection) |
-| **RAG / pgvector Scaffolding**| 🔄 Architecture Ready | Embedding generators, pgvector retriever contracts, and prompt grounding schemas created (Phase 2 connection) |
+### 1. Public Benchmark Dataset
+- **Dataset**: South German Credit (*Groemping, 2020 / UCI Machine Learning Repository / OpenML `credit-g`*).
+- **Instances**: 1,000 credit records with 20 input attributes.
+- **Target**: `class` (0 = Good Credit / Non-Default: 700 instances, 1 = Bad Credit / Default: 300 instances).
+- **Class Imbalance**: 2.33:1 ratio (accounted for via stratified splitting and `scale_pos_weight=2.33`).
+- **Dataset Limitations**: Historical European banking dataset with D-Mark currency denominations. While it demonstrates authentic credit underwriting dynamics (debt burden, installment rates, stability, past delinquency remarks), it does not directly represent modern Indian consumer UPI/CIBIL credit lines.
+
+### 2. Feature Engineering & Preprocessing
+- **Leakage Prevention**: All scaling (`StandardScaler`), median imputations, and one-hot encodings (`OneHotEncoder`) are encapsulated inside a scikit-learn `ColumnTransformer` fitted strictly on training data.
+- **Engineered Financial Features**:
+  - `monthly_installment_burden`: Estimated monthly repayment load ($\text{credit\_amount} / \text{duration}$).
+  - `credit_to_age_ratio`: Debt leverage relative to borrower lifecycle stage.
+  - `stability_index`: Combined residential and credit history tenure.
+  - `has_delinquency_history`: Binary indicator derived from past delayed or critical remarks.
+  - `savings_buffer_score`: Ordinal emergency buffer indicator (0–4).
+  - `checking_liquidity_score`: Ordinal liquid checking account score (0–3).
+
+### 3. Model Evaluation Results
+
+| Metric | Logistic Regression (Baseline) | XGBoost Classifier (Primary) |
+| :--- | :---: | :---: |
+| **Accuracy** | 75.00% | **75.50%** |
+| **Precision (Default Class)** | 55.68% | **57.75%** |
+| **Recall (Default Class)** | **81.67%** | 68.33% |
+| **F1-Score** | 66.22% | 62.60% |
+| **ROC-AUC** | 80.80% | **79.87%** |
+| **PR-AUC** | 64.39% | **65.96%** |
+| **Brier Calibration Score** | 0.1814 | **0.1715** |
+
+- **Confusion Matrix (XGBoost on 200 Test Records)**:
+  - True Negatives (Good predicted Good): **110**
+  - False Positives (Good predicted Bad): **30**
+  - False Negatives (Bad predicted Good): **19**
+  - True Positives (Bad predicted Bad): **41**
+
+### 4. TreeSHAP Model Explainability
+- Evaluates exact Shapley values directly across the XGBoost tree ensemble via C++ TreeSHAP.
+- Generates structured attributions indicating both direction and magnitude:
+  - **Risk-Reducing / Positive Drivers**: High payment consistency, low DTI, high savings cushion.
+  - **Risk-Increasing / Watch Signals**: Elevated revolving utilization, short employment tenure, past delays.
+
+### 5. CreditLens Deterministic Credit Health Score (0–1000)
+A fully explainable, transparent financial diagnostic score calculated across 5 weighted dimensions:
+
+$$\text{Score} = \text{PaymentReliability} + \text{UtilizationScore} + \text{DTIScore} + \text{TenureScore} + \text{SpendingStability}$$
+
+1. **Payment Reliability & Consistency** (350 pts / 35%): $350 \times (\text{PaymentRatio})^{1.8}$
+2. **Revolving Credit Utilization** (250 pts / 25%): Non-linear penalty above optimal 30% threshold.
+3. **Debt-to-Income (DTI) Leverage** (200 pts / 20%): Evaluates total monthly EMI + 5% revolving minimum debt drain vs net income.
+4. **Credit History Tenure & Seasoning** (100 pts / 10%): Seasoning of active credit lines (0–5+ years).
+5. **Spending Velocity & Cashflow Stability** (100 pts / 10%): Current monthly spend vs 6-month historical baseline.
+
+**Score Tiers**:
+- `800 – 1000`: **Excellent** (Prime credit health)
+- `700 – 799`: **Healthy** (Strong standing, e.g. Alex Mercer demo score = 775 / 1000)
+- `600 – 699`: **Fair** (Elevated utilization or high DTI)
+- `0 – 599`: **Needs Attention** (Elevated default risk or severe payment delays)
 
 ---
 
 ## 🛠️ Technology Stack
 
 ### Frontend
-- **Framework**: Next.js 16 (App Router)
-- **UI Library**: React 19 + TypeScript
-- **Styling**: Tailwind CSS v4 + Custom Fintech Tokens
+- **Framework**: Next.js 16 (Turbopack, App Router)
+- **UI Library**: React 19 + TypeScript 5
+- **Styling**: Tailwind CSS v4 + Obsidian/Emerald Fintech Tokens
 - **Icons**: Lucide React
-- **Utilities**: clsx, tailwind-merge
+- **Wire Contract Mappers**: Type-safe DTO adapters (`frontend/src/services/mappers.ts`)
 
-### Backend
-- **Framework**: FastAPI + Uvicorn (ASGI)
+### Backend & Machine Learning
+- **API Framework**: FastAPI + Uvicorn (ASGI)
 - **Validation**: Pydantic v2 + Pydantic-Settings
-- **ORM & Database**: SQLAlchemy 2.0 (AsyncIO) + Alembic
-- **Driver**: asyncpg / psycopg2 (PostgreSQL + pgvector ready)
-- **HTTP Client**: HTTPX
-
-### Infrastructure & Deployment Ready
-- **Containerization**: Docker & `docker-compose.yml` (pgvector/pgvector:pg16 + FastAPI)
-- **Database Compatibility**: Neon PostgreSQL / Supabase / AWS RDS
-- **Hosting Targets**: Vercel (Frontend), Render / Railway / AWS (Backend)
+- **Gradient Boosting**: XGBoost v3.2
+- **Scikit-Learn**: v1.9 (Pipeline, ColumnTransformer, StandardScaler, OneHotEncoder)
+- **Explainability**: SHAP v0.51 + Native XGBoost TreeSHAP
+- **Serialization**: Joblib v1.5
+- **Data Engine**: Pandas v2.2 + NumPy v2.4 + SciPy v1.17
 
 ---
 
-## 💻 Local Setup & Execution
+## 💻 Local Setup & Execution Commands
 
 ### Prerequisites
-- Node.js v18+ (tested on Node v24)
-- Python 3.10+ (tested on Python 3.14)
-- npm or pnpm
+- Node.js v18+ (tested on v24)
+- Python 3.11+
+- Git
 
-### 1. Clone & Environment Setup
+### 1. Backend Setup & Model Training
 ```bash
-git clone <repo-url>
-cd "AI-Powered Credit Risk & Financial Intelligence Platform"
+cd backend
 
-# Copy environment templates
-cp .env.example .env
-cp backend/.env.example backend/.env
+# Activate virtual environment
+# Windows:
+.\.venv\Scripts\activate
+# Linux/macOS:
+source .venv/bin/activate
+
+# Install dependencies
+python -m pip install -r requirements.txt
+
+# Run reproducible ML model training pipeline
+python -m app.ml.training.trainer
+
+# Run complete backend & ML integration test suite
+python test_api.py
+
+# Start FastAPI server on port 8000
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 2. Run Frontend
+- **Interactive Swagger Docs**: [http://localhost:8000/api/v1/docs](http://localhost:8000/api/v1/docs)
+- **Health Endpoint**: [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health)
+- **Model Info**: [http://localhost:8000/api/v1/risk/model-info](http://localhost:8000/api/v1/risk/model-info)
+
+### 2. Frontend Execution
 ```bash
 cd frontend
+
+# Install dependencies
 npm install
+
+# Run TypeScript & Next.js production build
+npm run build
+
+# Run ESLint check
+npm run lint
+
+# Start development server on port 3000
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### 3. Run Backend (FastAPI)
-```bash
-cd backend
-python -m pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-```
-- API Root: [http://localhost:8000](http://localhost:8000)
-- Interactive Swagger Docs: [http://localhost:8000/api/v1/docs](http://localhost:8000/api/v1/docs)
-- Health Check: [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health)
-
-### 4. Run Backend Integration Tests
-```bash
-cd backend
-python test_api.py
-```
-
-### 5. Run Frontend Production Build & Lint Checks
-```bash
-cd frontend
-npm run lint
-npm run build
-```
+Open [http://localhost:3000/dashboard](http://localhost:3000/dashboard) to explore the live intelligence command center.
 
 ---
 
-## 🗺️ Project Structure
+## 🔌 API Endpoints Catalog
 
-```
-├── .env.example                  # Root environment template
-├── .gitignore                    # Git ignore rules
-├── docker-compose.yml            # Docker stack (pgvector + backend)
-├── package.json                  # Root monorepo helper scripts
-├── README.md                     # Master documentation
-│
-├── frontend/                     # Next.js 16 Application
-│   ├── src/
-│   │   ├── app/                  # App Router Pages
-│   │   │   ├── page.tsx          # SaaS Landing Page
-│   │   │   ├── login/page.tsx    # Authentication Portal
-│   │   │   ├── onboarding/page.tsx # 4-Step Setup Wizard
-│   │   │   ├── dashboard/page.tsx # Main Financial Intelligence Command Center
-│   │   │   ├── credit-health/page.tsx # Credit Health Diagnostics (0-1000)
-│   │   │   ├── risk-analysis/page.tsx # ML Risk Assessment & Explainability
-│   │   │   ├── spending/page.tsx # Spending Velocity & Anomaly Detection
-│   │   │   ├── copilot/page.tsx  # Ask CreditLens 3-Column Studio
-│   │   │   ├── settings/page.tsx # Data Governance & Privacy
-│   │   │   └── globals.css       # Design System Tokens
-│   │   ├── components/
-│   │   │   ├── ui/               # Button, Badge, Card, Input, ProgressBar, Modal, RadialGauge
-│   │   │   ├── layout/           # AppLayout, Sidebar, Header, MobileNav, DemoBanner, PageHeader
-│   │   │   └── fintech/          # MetricCard, ScoreCard, FactorBreakdown, RiskDistribution,
-│   │   │                         # AnomalyCard, TransactionTable, CopilotChat, SourceCitationPanel
-│   │   ├── context/              # AuthContext, CreditLensContext
-│   │   ├── lib/                  # demo-data, constants, utils
-│   │   ├── services/             # API client, credit, risk, spending, copilot, auth services
-│   │   └── types/                # TypeScript domain definitions
-│   ├── package.json
-│   └── tsconfig.json
-│
-└── backend/                      # FastAPI Python Application
-    ├── app/
-    │   ├── api/v1/               # Versioned REST endpoints (health, risk, credit, spending, copilot)
-    │   ├── core/                 # Config (pydantic-settings), logging
-    │   ├── db/                   # Async session & Base models
-    │   ├── models/               # SQLAlchemy models (User, Profile, Transaction, Risk, etc.)
-    │   ├── schemas/              # Pydantic data contracts
-    │   ├── services/             # Business logic service abstractions
-    │   ├── ml/                   # Feature extraction & XGBoost/SHAP scaffolding
-    │   ├── rag/                  # pgvector & Gemini retriever scaffolding
-    │   └── main.py               # FastAPI application entrypoint
-    ├── Dockerfile
-    ├── requirements.txt
-    └── test_api.py               # Synchronous integration test suite
-```
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/health` | Service health status and feature flags |
+| `GET` | `/api/v1/risk/analysis?demo=true` | Real XGBoost default risk probabilities and TreeSHAP feature attributions |
+| `POST` | `/api/v1/risk/predict` | Predicts risk category and probabilities for custom applicant profile inputs |
+| `GET` | `/api/v1/risk/model-info` | Model specifications, baseline vs XGBoost evaluation metrics, and feature list |
+| `GET` | `/api/v1/credit-health/summary?demo=true` | Computes deterministic 0–1000 Credit Health Score and 5-factor breakdown |
+| `POST` | `/api/v1/credit-health/calculate` | Calculates dynamic 0–1000 score for custom income, limit, utilization, and DTI inputs |
+| `GET` | `/api/v1/spending/overview?demo=true` | Spending velocity, classified transaction ledger, and pattern anomaly alerts |
+| `POST` | `/api/v1/copilot/query` | Grounded financial intelligence inquiry with verified source citations |
+| `POST` | `/api/v1/users/login` | Session authentication & demo account token issuance |
 
 ---
 
-## 🔮 Phase 2 Roadmap & Next Steps
+## ⚖️ Responsible AI & Regulatory Disclaimer
 
-1. **Transaction Ingestion & Rule-Based Feature Engine**:
-   - PDF statement parsing (bank/card statements) and transaction categorization.
-   - Deterministic feature matrix calculation for revolving utilization, debt ratios, and spending velocity.
-
-2. **Scikit-Learn / XGBoost Risk Model**:
-   - Train multi-class default risk prediction model on synthetic/anonymized lending credit datasets.
-   - Connect TreeSHAP explainer to generate true mathematical feature attributions.
-
-3. **RAG Vector Search & Gemini 1.5 Grounding**:
-   - Apply PostgreSQL `pgvector` migration.
-   - Ingest RBI Master Directions 2022 and credit regulation circulars into 384-dimensional chunk embeddings.
-   - Wire Gemini 1.5 Pro to generate natural language answers strictly referencing retrieved regulatory chunks and structured pipeline inputs.
-
----
-
-## ⚖️ License & Disclaimer
-
-CreditLens is developed as an educational, portfolio-grade open-source project. CreditLens is **not a credit bureau (CIBIL/Experian)** and does not provide formal credit ratings or financial advice.
+CreditLens is developed as an educational, pattern diagnostics, and portfolio engineering project. 
+- CreditLens is **NOT a credit reporting agency or bureau (such as CIBIL, Equifax, or Experian)**.
+- The **CreditLens Credit Health Score** is an educational mathematical index and does not represent official credit underwriting.
+- Outputs from CreditLens machine learning models and copilot insights do not constitute financial, investment, or legal advice.
