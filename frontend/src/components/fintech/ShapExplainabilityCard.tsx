@@ -12,26 +12,26 @@ export interface ShapExplainabilityCardProps {
 
 export function ShapExplainabilityCard({ contributions }: ShapExplainabilityCardProps) {
   return (
-    <Card className="p-6 bg-slate-900/90 border border-slate-800">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-800 mb-5 gap-2">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
-            <BrainCircuit className="w-4 h-4" />
+    <Card className="p-6 bg-[#0B110D] border-white/10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-white/[0.08] mb-5 gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center border border-emerald-500/25">
+            <BrainCircuit className="w-5 h-5" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-base text-slate-100">Model Explainability</CardTitle>
-              <Badge variant="blue" size="sm">SHAP Architecture Ready</Badge>
+            <div className="flex items-center gap-2 flex-wrap">
+              <CardTitle className="text-base text-white">Model Explainability (SHAP)</CardTitle>
+              <Badge variant="emerald" size="sm">TreeSHAP Ready</Badge>
             </div>
-            <p className="text-xs text-slate-400">
-              Feature attribution & predictive impact indicators (XGBoost TreeExplainer framework)
+            <p className="text-xs text-neutral-400 mt-0.5">
+              Feature attribution & predictive impact deltas (XGBoost TreeExplainer framework)
             </p>
           </div>
         </div>
 
-        <Tooltip content="SHAP (SHapley Additive exPlanations) values quantify how each financial feature moves the prediction relative to the baseline score.">
-          <div className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-slate-200 cursor-pointer">
-            <Info className="w-3.5 h-3.5" />
+        <Tooltip content="SHAP (SHapley Additive exPlanations) values quantify how each financial feature moves the default prediction relative to the population baseline.">
+          <div className="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-emerald-300 cursor-pointer">
+            <Info className="w-4 h-4" />
             <span>How Explainability Works</span>
           </div>
         </Tooltip>
@@ -47,33 +47,37 @@ export function ShapExplainabilityCard({ contributions }: ShapExplainabilityCard
           return (
             <div
               key={item.featureName}
-              className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+              className="p-3.5 rounded-xl bg-[#0E1510] border border-white/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs hover:border-emerald-500/30 transition-colors"
             >
-              <div className="flex items-center gap-2.5 min-w-[200px]">
+              <div className="flex items-center gap-3 min-w-[210px]">
                 <div
                   className={cn(
-                    "w-6 h-6 rounded-md flex items-center justify-center shrink-0",
-                    isPositive ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"
+                    "w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border",
+                    isPositive
+                      ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                      : "bg-rose-500/15 text-rose-300 border-rose-500/30"
                   )}
                 >
-                  {isPositive ? <ArrowUp className="w-3.5 h-3.5" /> : <ArrowDown className="w-3.5 h-3.5" />}
+                  {isPositive ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
                 </div>
                 <div>
-                  <span className="font-semibold text-slate-200 block">{item.displayName}</span>
-                  <span className="text-[10px] text-slate-500 font-mono">Input: {item.featureValue}</span>
+                  <span className="font-bold text-sm text-white block">{item.displayName}</span>
+                  <span className="text-xs text-neutral-400 font-mono">Profile Input: {item.featureValue}</span>
                 </div>
               </div>
 
               {/* Relative Impact Bar */}
-              <div className="flex-1 max-w-xs mx-0 sm:mx-4 flex items-center gap-2">
-                <span className="text-[10px] text-slate-400 w-12 text-right">
+              <div className="flex-1 max-w-xs mx-0 sm:mx-4 flex items-center gap-3">
+                <span className="text-xs text-neutral-400 w-24 text-right shrink-0">
                   {isPositive ? "Reduces Risk" : "Increases Risk"}
                 </span>
-                <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                <div className="flex-1 h-2.5 bg-[#121A14] rounded-full overflow-hidden border border-white/5">
                   <div
                     className={cn(
                       "h-full rounded-full transition-all duration-700",
-                      isPositive ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" : "bg-rose-400 shadow-[0_0_8px_rgba(244,63,94,0.5)]"
+                      isPositive
+                        ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)]"
+                        : "bg-rose-400 shadow-[0_0_8px_rgba(244,63,94,0.4)]"
                     )}
                     style={{ width: `${barWidthPct}%` }}
                   />
@@ -84,10 +88,10 @@ export function ShapExplainabilityCard({ contributions }: ShapExplainabilityCard
               <div className="text-right shrink-0">
                 <span
                   className={cn(
-                    "font-mono font-bold text-xs px-2 py-0.5 rounded-md border",
+                    "font-mono font-bold text-xs px-2.5 py-1 rounded-md border",
                     isPositive
-                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                      : "bg-rose-500/10 text-rose-400 border-rose-500/30"
+                      ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/30"
+                      : "bg-rose-500/10 text-rose-300 border-rose-500/30"
                   )}
                 >
                   {item.impactValue > 0 ? `+${item.impactValue.toFixed(2)}` : item.impactValue.toFixed(2)}
@@ -98,9 +102,9 @@ export function ShapExplainabilityCard({ contributions }: ShapExplainabilityCard
         })}
       </div>
 
-      <div className="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-500 flex items-center justify-between">
+      <div className="mt-5 pt-3.5 border-t border-white/[0.08] text-xs text-neutral-400 flex items-center justify-between">
         <span>Framework: TreeSHAP Kernel v0.45</span>
-        <span className="text-blue-400/80 font-medium">Phase 1 Architecture Container</span>
+        <span className="text-emerald-400 font-medium">Deterministic Feature Impact Container</span>
       </div>
     </Card>
   );

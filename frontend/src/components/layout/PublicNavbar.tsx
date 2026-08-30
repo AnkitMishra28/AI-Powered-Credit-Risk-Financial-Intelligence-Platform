@@ -9,36 +9,36 @@ export function PublicNavbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <nav className="h-20 bg-[#090D16]/80 border-b border-slate-800/80 px-6 md:px-12 flex items-center justify-between sticky top-0 z-50 backdrop-blur-lg">
+    <nav className="h-20 bg-[#050706]/85 border-b border-white/[0.07] px-6 md:px-12 flex items-center justify-between sticky top-0 z-50 backdrop-blur-lg">
       <Link href="/" className="flex items-center gap-3 group">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-emerald-400 p-[1.5px] shadow-lg shadow-blue-500/20 group-hover:shadow-blue-500/30 transition-all">
-          <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 via-emerald-500 to-lime-400 p-[1.5px] shadow-lg shadow-emerald-950/60 group-hover:shadow-emerald-900/80 transition-all">
+          <div className="w-full h-full bg-[#050706] rounded-[10px] flex items-center justify-center">
             <TrendingUp className="w-5 h-5 text-emerald-400" />
           </div>
         </div>
         <div>
           <div className="flex items-center gap-1.5">
             <span className="font-extrabold text-lg tracking-tight text-white">CreditLens</span>
-            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">AI</span>
+            <span className="text-xs font-bold px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">AI</span>
           </div>
-          <p className="text-[10px] text-slate-400 font-medium">Credit Risk & Financial Intelligence</p>
+          <p className="text-xs text-neutral-400 font-medium">Financial Intelligence</p>
         </div>
       </Link>
 
       {/* Desktop Links */}
-      <div className="hidden md:flex items-center gap-8 text-xs font-semibold text-slate-300">
-        <Link href="#features" className="hover:text-blue-400 transition-colors">
-          Intelligence Suite
+      <div className="hidden md:flex items-center gap-8 text-sm font-medium text-neutral-300">
+        <Link href="#features" className="hover:text-emerald-400 transition-colors">
+          Intelligence Console
         </Link>
-        <Link href="#how-it-works" className="hover:text-blue-400 transition-colors">
+        <Link href="#how-it-works" className="hover:text-emerald-400 transition-colors">
           How It Works
         </Link>
-        <Link href="#explainable-ai" className="hover:text-blue-400 transition-colors">
+        <Link href="#explainable-ai" className="hover:text-emerald-400 transition-colors">
           Responsible AI
         </Link>
-        <Link href="/dashboard" className="text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1">
+        <Link href="/dashboard" className="text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-2 font-semibold">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          Live Interactive Demo
+          Interactive Demo
         </Link>
       </div>
 
@@ -51,7 +51,7 @@ export function PublicNavbar() {
         </Link>
         <Link href="/dashboard">
           <Button variant="primary" size="sm" rightIcon={<ArrowRight className="w-4 h-4" />}>
-            Explore Demo
+            Launch Console
           </Button>
         </Link>
       </div>
@@ -59,7 +59,7 @@ export function PublicNavbar() {
       {/* Mobile Toggle */}
       <button
         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        className="md:hidden p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300"
+        className="md:hidden p-2.5 rounded-xl bg-[#0E1510] border border-white/10 text-neutral-300"
         aria-label="Toggle menu"
       >
         {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -67,17 +67,17 @@ export function PublicNavbar() {
 
       {/* Mobile Dropdown */}
       {mobileMenuOpen && (
-        <div className="md:hidden absolute top-20 left-0 right-0 bg-slate-900 border-b border-slate-800 p-6 flex flex-col gap-4 animate-in fade-in slide-in-from-top-4">
-          <Link href="#features" onClick={() => setMobileMenuOpen(false)} className="text-sm font-medium text-slate-300">
-            Intelligence Suite
+        <div className="md:hidden absolute top-20 left-0 right-0 bg-[#070B08] border-b border-white/10 p-6 flex flex-col gap-4 animate-in fade-in slide-in-from-top-4 shadow-2xl">
+          <Link href="#features" onClick={() => setMobileMenuOpen(false)} className="text-sm font-medium text-neutral-200">
+            Intelligence Console
           </Link>
-          <Link href="#how-it-works" onClick={() => setMobileMenuOpen(false)} className="text-sm font-medium text-slate-300">
+          <Link href="#how-it-works" onClick={() => setMobileMenuOpen(false)} className="text-sm font-medium text-neutral-200">
             How It Works
           </Link>
-          <Link href="#explainable-ai" onClick={() => setMobileMenuOpen(false)} className="text-sm font-medium text-slate-300">
+          <Link href="#explainable-ai" onClick={() => setMobileMenuOpen(false)} className="text-sm font-medium text-neutral-200">
             Responsible AI
           </Link>
-          <div className="pt-4 border-t border-slate-800 flex flex-col gap-2">
+          <div className="pt-4 border-t border-white/[0.08] flex flex-col gap-2.5">
             <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
               <Button variant="outline" className="w-full">
                 Sign In

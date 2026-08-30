@@ -37,7 +37,7 @@ export function Tooltip({
       {isVisible && (
         <div
           className={cn(
-            "absolute z-50 px-2.5 py-1.5 text-xs text-slate-200 bg-slate-800 border border-slate-700 rounded-lg shadow-xl whitespace-nowrap pointer-events-none transition-all duration-150 animate-in fade-in",
+            "absolute z-50 px-3 py-1.5 text-xs text-neutral-200 bg-[#101712] border border-white/10 rounded-xl shadow-2xl whitespace-nowrap pointer-events-none transition-all duration-150 animate-in fade-in",
             positionStyles[position],
             className
           )}

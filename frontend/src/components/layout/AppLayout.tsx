@@ -10,7 +10,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#090D16] text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-[#050706] text-[#F9FAFB] flex flex-col">
       {/* Top Demo Banner */}
       <DemoBanner />
 

@@ -34,13 +34,13 @@ export function TransactionTable({
 
   const getCategoryIcon = (cat: string) => {
     const c = cat.toLowerCase();
-    if (c.includes("food") || c.includes("dining")) return <Utensils className="w-3.5 h-3.5 text-emerald-400" />;
-    if (c.includes("shop")) return <ShoppingBag className="w-3.5 h-3.5 text-blue-400" />;
-    if (c.includes("transport") || c.includes("fuel")) return <Car className="w-3.5 h-3.5 text-amber-400" />;
-    if (c.includes("entertainment")) return <Tv className="w-3.5 h-3.5 text-pink-400" />;
-    if (c.includes("utilities") || c.includes("bills")) return <Zap className="w-3.5 h-3.5 text-purple-400" />;
-    if (c.includes("health")) return <HeartPulse className="w-3.5 h-3.5 text-cyan-400" />;
-    return <CreditCard className="w-3.5 h-3.5 text-slate-400" />;
+    if (c.includes("food") || c.includes("dining")) return <Utensils className="w-4 h-4 text-emerald-400" />;
+    if (c.includes("shop")) return <ShoppingBag className="w-4 h-4 text-sky-400" />;
+    if (c.includes("transport") || c.includes("fuel")) return <Car className="w-4 h-4 text-amber-400" />;
+    if (c.includes("entertainment")) return <Tv className="w-4 h-4 text-pink-400" />;
+    if (c.includes("utilities") || c.includes("bills")) return <Zap className="w-4 h-4 text-emerald-300" />;
+    if (c.includes("health")) return <HeartPulse className="w-4 h-4 text-rose-400" />;
+    return <CreditCard className="w-4 h-4 text-neutral-400" />;
   };
 
   const filtered = transactions
@@ -57,34 +57,34 @@ export function TransactionTable({
   const categories = ["All", "Food & Dining", "Shopping", "Transport & Fuel", "Entertainment", "Utilities & Bills", "Healthcare"];
 
   return (
-    <Card className="p-5 md:p-6 bg-slate-900/90">
+    <Card className="p-5 md:p-6 bg-[#0B110D] border-white/10">
       {/* Header & Filters */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-slate-800 gap-3 mb-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-white/[0.08] gap-3 mb-4">
         <div>
-          <CardTitle className="text-base text-slate-100">{title}</CardTitle>
-          <p className="text-xs text-slate-400">Classified transaction ledger</p>
+          <CardTitle className="text-base text-white">{title}</CardTitle>
+          <p className="text-xs text-neutral-400 mt-0.5">Classified transaction ledger & pattern signals</p>
         </div>
 
         {showFilters && (
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2.5">
             <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-4 h-4 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search merchant..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-slate-950/80 text-xs text-slate-200 placeholder:text-slate-500 rounded-xl pl-8 pr-3 py-1.5 border border-slate-800 focus:outline-none focus:border-blue-500 w-36 md:w-44"
+                className="bg-[#0E1510] text-xs text-white placeholder:text-neutral-500 rounded-xl pl-9 pr-3.5 py-2 border border-white/10 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 w-40 md:w-52"
               />
             </div>
 
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="bg-slate-950/80 text-xs text-slate-300 rounded-xl px-2.5 py-1.5 border border-slate-800 focus:outline-none focus:border-blue-500 cursor-pointer"
+              className="bg-[#0E1510] text-xs text-neutral-200 rounded-xl px-3 py-2 border border-white/10 focus:outline-none focus:border-emerald-500 cursor-pointer"
             >
               {categories.map((c) => (
-                <option key={c} value={c}>
+                <option key={c} value={c} className="bg-[#0B110D] text-neutral-200">
                   {c}
                 </option>
               ))}
@@ -97,50 +97,50 @@ export function TransactionTable({
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
-            <tr className="border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-              <th className="pb-3 pl-1">Merchant & Category</th>
+            <tr className="border-b border-white/[0.08] text-xs font-bold text-neutral-400 uppercase tracking-wider">
+              <th className="pb-3 pl-2">Merchant & Category</th>
               <th className="pb-3 hidden sm:table-cell">Account</th>
               <th className="pb-3 hidden md:table-cell">Date</th>
               <th className="pb-3 text-right">Amount</th>
-              <th className="pb-3 text-right pr-1">Signal</th>
+              <th className="pb-3 text-right pr-2">Signal</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60">
+          <tbody className="divide-y divide-white/[0.05]">
             {filtered.map((tx) => (
-              <tr key={tx.id} className="hover:bg-slate-800/40 transition-colors group">
-                <td className="py-3 pl-1">
+              <tr key={tx.id} className="hover:bg-[#101712] transition-colors group">
+                <td className="py-3.5 pl-2">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-slate-800/80 border border-slate-700/60 flex items-center justify-center shrink-0">
+                    <div className="w-9 h-9 rounded-xl bg-[#121A14] border border-white/10 flex items-center justify-center shrink-0 group-hover:border-emerald-500/30 transition-colors">
                       {getCategoryIcon(tx.category)}
                     </div>
                     <div>
-                      <span className="font-semibold text-slate-100 block group-hover:text-blue-300 transition-colors">
+                      <span className="font-bold text-sm text-white block group-hover:text-emerald-300 transition-colors">
                         {tx.merchant}
                       </span>
-                      <span className="text-[10px] text-slate-400">{tx.category}</span>
+                      <span className="text-xs text-neutral-400">{tx.category}</span>
                     </div>
                   </div>
                 </td>
 
-                <td className="py-3 hidden sm:table-cell text-slate-400 text-[11px]">
+                <td className="py-3.5 hidden sm:table-cell text-neutral-300 text-xs">
                   {tx.accountType}
                 </td>
 
-                <td className="py-3 hidden md:table-cell text-slate-400 text-[11px] font-mono">
+                <td className="py-3.5 hidden md:table-cell text-neutral-400 text-xs font-mono">
                   {formatDate(tx.date)}
                 </td>
 
-                <td className="py-3 text-right font-mono font-bold text-slate-100">
+                <td className="py-3.5 text-right font-mono font-bold text-sm text-white">
                   {formatINR(tx.amount, true)}
                 </td>
 
-                <td className="py-3 text-right pr-1">
+                <td className="py-3.5 text-right pr-2">
                   {tx.isAnomaly ? (
                     <Badge variant="amber" size="sm" showDot>
                       {tx.anomalyReason || "Anomaly"}
                     </Badge>
                   ) : (
-                    <span className="text-[10px] text-slate-500 font-medium">Standard</span>
+                    <span className="text-xs text-neutral-400 font-medium">Standard</span>
                   )}
                 </td>
               </tr>
@@ -149,8 +149,8 @@ export function TransactionTable({
         </table>
 
         {filtered.length === 0 && (
-          <div className="text-center py-8 text-xs text-slate-500">
-            No transactions matching filter criteria.
+          <div className="text-center py-10 text-xs text-neutral-400">
+            No transactions found matching your criteria.
           </div>
         )}
       </div>

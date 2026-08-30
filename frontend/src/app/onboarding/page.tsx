@@ -64,16 +64,18 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#090D16] text-slate-100 flex flex-col justify-between p-4 sm:p-6">
+    <div className="min-h-screen bg-[#050706] text-[#F9FAFB] flex flex-col justify-between p-4 sm:p-6">
       {/* Header */}
-      <div className="max-w-4xl mx-auto w-full flex items-center justify-between py-2 border-b border-slate-800/80 pb-4">
+      <div className="max-w-4xl mx-auto w-full flex items-center justify-between py-2 border-b border-white/[0.08] pb-4">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white">
-            <TrendingUp className="w-4 h-4 text-emerald-400" />
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-600 to-lime-400 p-[1px]">
+            <div className="w-full h-full bg-[#050706] rounded-[10px] flex items-center justify-center">
+              <TrendingUp className="w-4 h-4 text-emerald-400" />
+            </div>
           </div>
           <div>
-            <span className="font-extrabold text-base text-white">CreditLens</span>
-            <p className="text-[10px] text-slate-400">Financial Profile Setup Wizard</p>
+            <span className="font-extrabold text-base text-white tracking-tight">CreditLens</span>
+            <p className="text-xs text-neutral-400">Financial Profile Setup Wizard</p>
           </div>
         </div>
 
@@ -81,8 +83,8 @@ export default function OnboardingPage() {
           size="sm"
           variant="secondary"
           onClick={handleDemoPreset}
-          className="text-xs border-slate-700 bg-slate-900 text-slate-300"
-          leftIcon={<Sparkles className="w-3.5 h-3.5 text-blue-400" />}
+          className="text-xs border-white/10 bg-[#0E1510] text-neutral-300 hover:text-white"
+          leftIcon={<Sparkles className="w-3.5 h-3.5 text-emerald-400" />}
         >
           Skip & Explore Demo
         </Button>
@@ -92,19 +94,19 @@ export default function OnboardingPage() {
       <div className="max-w-2xl mx-auto w-full my-8">
         {/* Step Indicator */}
         <div className="mb-6">
-          <div className="flex items-center justify-between text-xs font-semibold text-slate-400 mb-2">
+          <div className="flex items-center justify-between text-xs font-semibold text-neutral-400 mb-2">
             <span>Step {currentStep} of 4</span>
-            <span className="text-blue-400">
+            <span className="text-emerald-400 font-bold">
               {currentStep === 1 && "Welcome & Employment"}
               {currentStep === 2 && "Financial Profile"}
               {currentStep === 3 && "Connect Data"}
               {currentStep === 4 && "Ready to Analyze"}
             </span>
           </div>
-          <ProgressBar value={(currentStep / 4) * 100} variant="blue" size="sm" />
+          <ProgressBar value={(currentStep / 4) * 100} variant="emerald" size="sm" />
         </div>
 
-        <Card className="p-6 md:p-8 bg-slate-900/95 border-slate-700/80 shadow-2xl">
+        <Card className="p-6 md:p-8 bg-[#0B110D] border-white/10 shadow-2xl">
           {/* STEP 1: Welcome & Employment */}
           {currentStep === 1 && (
             <div className="space-y-6 animate-in fade-in duration-200">
@@ -112,13 +114,13 @@ export default function OnboardingPage() {
                 <h2 className="text-xl font-bold text-white tracking-tight">
                   Welcome to CreditLens
                 </h2>
-                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
                   Let&apos;s start by configuring your employment and primary cashflow source.
                 </p>
               </div>
 
               <div className="space-y-3">
-                <label className="block text-xs font-semibold text-slate-300">
+                <label className="block text-xs font-semibold text-neutral-300">
                   Select Employment Category
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -131,17 +133,17 @@ export default function OnboardingPage() {
                     <div
                       key={type}
                       onClick={() => setEmploymentType(type)}
-                      className={`p-3.5 rounded-xl border text-xs font-medium cursor-pointer transition-all flex items-center justify-between ${
+                      className={`p-4 rounded-xl border text-xs font-medium cursor-pointer transition-all flex items-center justify-between ${
                         employmentType === type
-                          ? "bg-blue-600/20 border-blue-500 text-white shadow-sm"
-                          : "bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700"
+                          ? "bg-emerald-950/40 border-emerald-500 text-white shadow-sm"
+                          : "bg-[#0E1510] border-white/[0.06] text-neutral-300 hover:border-emerald-500/30"
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <Building2 className="w-4 h-4 text-blue-400 shrink-0" />
-                        <span>{type}</span>
+                      <div className="flex items-center gap-2.5">
+                        <Building2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span className="font-semibold">{type}</span>
                       </div>
-                      {employmentType === type && <CheckCircle2 className="w-4 h-4 text-blue-400" />}
+                      {employmentType === type && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
                     </div>
                   ))}
                 </div>
@@ -156,7 +158,7 @@ export default function OnboardingPage() {
                 <h2 className="text-xl font-bold text-white tracking-tight">
                   Your Financial Profile Metrics
                 </h2>
-                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
                   Enter your take-home cashflow and credit line structure in INR (₹).
                 </p>
               </div>
@@ -177,7 +179,7 @@ export default function OnboardingPage() {
                   value={creditLimit}
                   onChange={(e) => setCreditLimit(e.target.value)}
                   leftIcon={<CreditCard className="w-4 h-4" />}
-                  helperText="Sum of limits across all active credit cards"
+                  helperText="Sum of limits across all active cards"
                 />
 
                 <Input
@@ -186,7 +188,7 @@ export default function OnboardingPage() {
                   value={revolvingBalance}
                   onChange={(e) => setRevolvingBalance(e.target.value)}
                   leftIcon={<CreditCard className="w-4 h-4" />}
-                  helperText="Current outstanding balance across cards"
+                  helperText="Current outstanding balance on cards"
                 />
 
                 <Input
@@ -195,14 +197,14 @@ export default function OnboardingPage() {
                   value={monthlyEMI}
                   onChange={(e) => setMonthlyEMI(e.target.value)}
                   leftIcon={<Building2 className="w-4 h-4" />}
-                  helperText="Personal loans, auto loans, or mortgages"
+                  helperText="Personal loans, auto loans, or home loans"
                 />
               </div>
 
               {/* Calculated Ratio Preview */}
-              <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800 text-xs flex items-center justify-between">
-                <span className="text-slate-400">Calculated Utilization Ratio:</span>
-                <span className="font-mono font-bold text-amber-400">
+              <div className="p-3.5 bg-[#0E1510] rounded-xl border border-white/[0.08] text-xs flex items-center justify-between">
+                <span className="text-neutral-400">Calculated Utilization Ratio:</span>
+                <span className="font-mono font-bold text-amber-400 text-sm">
                   {((parseFloat(revolvingBalance) / parseFloat(creditLimit)) * 100).toFixed(1)}%
                 </span>
               </div>
@@ -214,31 +216,31 @@ export default function OnboardingPage() {
             <div className="space-y-5 animate-in fade-in duration-200">
               <div>
                 <h2 className="text-xl font-bold text-white tracking-tight">
-                  Connect Financial Data
+                  Connect Financial Statements
                 </h2>
-                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
                   Upload bank statement PDFs or credit transaction CSVs for NLP classification and anomaly detection.
                 </p>
               </div>
 
-              <div className="border-2 border-dashed border-slate-700 hover:border-blue-500 rounded-2xl p-8 text-center bg-slate-950/40 transition-colors cursor-pointer">
-                <UploadCloud className="w-10 h-10 text-blue-400 mx-auto mb-3" />
-                <h4 className="text-sm font-bold text-slate-200 mb-1">
+              <div className="border-2 border-dashed border-white/15 hover:border-emerald-500 rounded-2xl p-8 text-center bg-[#0E1510] transition-colors cursor-pointer group">
+                <UploadCloud className="w-10 h-10 text-emerald-400 mx-auto mb-3 group-hover:scale-110 transition-transform" />
+                <h4 className="text-sm font-bold text-white mb-1">
                   Drag and drop bank statement (PDF / CSV)
                 </h4>
-                <p className="text-xs text-slate-400 max-w-sm mx-auto mb-4">
+                <p className="text-xs text-neutral-400 max-w-sm mx-auto mb-4 leading-relaxed">
                   Encrypted server-side. No plain passwords or credentials stored.
                 </p>
-                <div className="inline-block px-3 py-1 bg-slate-800 rounded-lg text-xs text-slate-300 border border-slate-700">
+                <div className="inline-block px-4 py-1.5 bg-[#141F17] rounded-lg text-xs text-emerald-300 border border-emerald-500/30 font-semibold">
                   Select File from Computer
                 </div>
               </div>
 
               {uploadedFileName && (
-                <div className="p-3 rounded-xl bg-blue-950/30 border border-blue-500/30 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-blue-400" />
-                    <span className="font-semibold text-slate-200">{uploadedFileName}</span>
+                <div className="p-3.5 rounded-xl bg-emerald-950/30 border border-emerald-500/30 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2.5">
+                    <FileText className="w-4 h-4 text-emerald-400" />
+                    <span className="font-semibold text-white">{uploadedFileName}</span>
                   </div>
                   <Badge variant="emerald" size="sm">
                     Verified Sample
@@ -252,39 +254,39 @@ export default function OnboardingPage() {
           {currentStep === 4 && (
             <div className="space-y-6 animate-in fade-in duration-200">
               <div className="text-center">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto mb-3 border border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
-                  <CheckCircle2 className="w-6 h-6" />
+                <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center mx-auto mb-3 border border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+                  <CheckCircle2 className="w-7 h-7" />
                 </div>
                 <h2 className="text-xl font-bold text-white tracking-tight">
                   Profile Configured & Ready
                 </h2>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-neutral-400 mt-1">
                   CreditLens is ready to compute your deterministic credit health score and ML risk rating.
                 </p>
               </div>
 
               {/* Profile Summary Card */}
-              <div className="p-4 bg-slate-950/60 rounded-xl border border-slate-800 space-y-2 text-xs">
-                <div className="flex justify-between py-1 border-b border-slate-800/80">
-                  <span className="text-slate-400">Monthly Net Income:</span>
-                  <span className="font-mono font-bold text-white">{formatINR(parseFloat(monthlyIncome))}</span>
+              <div className="p-4 bg-[#0E1510] rounded-xl border border-white/[0.08] space-y-2 text-xs">
+                <div className="flex justify-between py-1.5 border-b border-white/[0.06]">
+                  <span className="text-neutral-400">Monthly Net Income:</span>
+                  <span className="font-mono font-bold text-white text-xs">{formatINR(parseFloat(monthlyIncome))}</span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-slate-800/80">
-                  <span className="text-slate-400">Credit Limit / Balance:</span>
-                  <span className="font-mono font-bold text-white">
+                <div className="flex justify-between py-1.5 border-b border-white/[0.06]">
+                  <span className="text-neutral-400">Credit Limit / Balance:</span>
+                  <span className="font-mono font-bold text-white text-xs">
                     {formatINR(parseFloat(revolvingBalance))} / {formatINR(parseFloat(creditLimit))}
                   </span>
                 </div>
                 <div className="flex justify-between py-1">
-                  <span className="text-slate-400">Monthly Loan EMI:</span>
-                  <span className="font-mono font-bold text-white">{formatINR(parseFloat(monthlyEMI))}</span>
+                  <span className="text-neutral-400">Monthly Loan EMI:</span>
+                  <span className="font-mono font-bold text-white text-xs">{formatINR(parseFloat(monthlyEMI))}</span>
                 </div>
               </div>
             </div>
           )}
 
           {/* Navigation Buttons */}
-          <div className="flex items-center justify-between pt-6 border-t border-slate-800 mt-6">
+          <div className="flex items-center justify-between pt-6 border-t border-white/[0.08] mt-6">
             {currentStep > 1 ? (
               <Button
                 variant="outline"
@@ -299,7 +301,7 @@ export default function OnboardingPage() {
             )}
 
             <Button
-              variant={currentStep === 4 ? "emerald" : "primary"}
+              variant="emerald"
               size="md"
               isLoading={isProcessing}
               onClick={handleNext}
@@ -312,7 +314,7 @@ export default function OnboardingPage() {
       </div>
 
       {/* Footer */}
-      <div className="text-center text-[11px] text-slate-600 pb-2">
+      <div className="text-center text-xs text-neutral-600 pb-2">
         CreditLens Responsible AI Framework • Data remains private & server-side
       </div>
     </div>

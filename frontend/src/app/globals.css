@@ -1,80 +1,115 @@
 @import "tailwindcss";
 
 :root {
-  --bg-main: #090d16;
-  --bg-card: #0f172a;
-  --bg-card-hover: #141f38;
-  --bg-subtle: #1e293b;
-  --border-card: #1e293b;
-  --border-highlight: #334155;
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --bg-main: #050706;
+  --bg-card: #0b110d;
+  --bg-card-elevated: #101712;
+  --bg-card-hover: #152019;
+  --bg-subtle: #0f1611;
+  --border-card: rgba(255, 255, 255, 0.08);
+  --border-emerald: rgba(16, 185, 129, 0.2);
+  --border-highlight: rgba(16, 185, 129, 0.35);
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --text-muted: #9ca3af;
   --accent-emerald: #10b981;
-  --accent-blue: #3b82f6;
-  --accent-cyan: #06b6d4;
+  --accent-emerald-light: #34d399;
+  --accent-lime: #84cc16;
   --accent-amber: #f59e0b;
   --accent-rose: #f43f5e;
+  --accent-blue: #38bdf8;
 }
 
 body {
-  background-color: #090d16;
-  color: #f8fafc;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: #050706;
+  color: #f9fafb;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar - Sleek Dark Theme */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #090d16;
+  background: #050706;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: #141f17;
   border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #1e3024;
 }
 
-/* Card Glow & Surface Utility Classes */
+/* Card Glow & Layered Surfaces */
 .fintech-card {
-  background: #0f172a;
-  border: 1px solid rgba(51, 65, 85, 0.5);
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.02);
-  border-radius: 1rem;
+  background-color: #0b110d;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(16, 185, 129, 0.03);
+  border-radius: 1.125rem;
 }
 
 .fintech-card-hover {
-  transition: all 0.2s ease-in-out;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .fintech-card-hover:hover {
-  border-color: rgba(59, 130, 246, 0.4);
-  box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.6), 0 0 15px -3px rgba(59, 130, 246, 0.15);
+  border-color: rgba(16, 185, 129, 0.3);
+  background-color: #0e1611;
+  box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.7), 0 0 20px -4px rgba(16, 185, 129, 0.12);
+  transform: translateY(-1px);
 }
 
 .fintech-gradient-emerald {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.02) 100%);
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.09) 0%, rgba(11, 17, 13, 0.95) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.22);
 }
 
-.fintech-gradient-blue {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.02) 100%);
-  border: 1px solid rgba(59, 130, 246, 0.3);
+.fintech-gradient-emerald-subtle {
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.05) 0%, rgba(11, 17, 13, 0.4) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.14);
 }
 
 .fintech-gradient-amber {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.02) 100%);
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.09) 0%, rgba(11, 17, 13, 0.95) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.22);
+}
+
+.fintech-gradient-rose {
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.09) 0%, rgba(11, 17, 13, 0.95) 100%);
+  border: 1px solid rgba(244, 63, 94, 0.22);
+}
+
+/* Ambient Radial Glow Lighting */
+.ambient-emerald-glow {
+  position: relative;
+}
+
+.ambient-emerald-glow::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80%;
+  height: 80%;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, rgba(5, 7, 6, 0) 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Subtle Grid Background Overlay */
+.bg-grid-subtle {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 32px 32px;
 }
 
 /* Shimmer animation for loading skeleton */
@@ -88,7 +123,7 @@ body {
 }
 
 .animate-shimmer {
-  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+  background: linear-gradient(90deg, #0d140f 25%, #152019 50%, #0d140f 75%);
   background-size: 200% 100%;
   animation: shimmer 1.8s infinite linear;
 }

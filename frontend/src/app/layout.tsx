@@ -26,7 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className="bg-[#090D16] text-slate-100 antialiased min-h-screen">
+      <body className="bg-[#050706] text-[#F9FAFB] antialiased min-h-screen selection:bg-emerald-500/25 selection:text-emerald-200">
         <AuthProvider>
           <CreditLensProvider>
             {children}

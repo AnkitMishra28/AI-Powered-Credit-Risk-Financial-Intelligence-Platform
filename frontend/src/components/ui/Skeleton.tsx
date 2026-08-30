@@ -19,7 +19,7 @@ export function Skeleton({
   return (
     <div
       className={cn(
-        "animate-shimmer bg-slate-800",
+        "animate-shimmer bg-[#101712]",
         variantStyles[variant],
         className
       )}

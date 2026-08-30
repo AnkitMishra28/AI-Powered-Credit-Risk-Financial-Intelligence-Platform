@@ -21,12 +21,12 @@ export function EmptyState({
   icon,
 }: EmptyStateProps) {
   return (
-    <div className="fintech-card p-10 flex flex-col items-center justify-center text-center max-w-md mx-auto my-6 border-dashed border-slate-700/80">
-      <div className="w-14 h-14 rounded-2xl bg-slate-800/80 border border-slate-700 flex items-center justify-center text-slate-400 mb-4 shadow-inner">
+    <div className="fintech-card p-10 flex flex-col items-center justify-center text-center max-w-md mx-auto my-6 border-dashed border-white/10 bg-[#080D09]/80">
+      <div className="w-14 h-14 rounded-2xl bg-[#101712] border border-white/10 flex items-center justify-center text-emerald-400 mb-4 shadow-inner">
         {icon || <FolderOpen className="w-7 h-7" />}
       </div>
-      <h4 className="text-base font-bold text-slate-100 mb-1.5">{title}</h4>
-      <p className="text-xs text-slate-400 max-w-xs mb-5 leading-relaxed">{description}</p>
+      <h4 className="text-base font-bold text-white mb-1.5 tracking-tight">{title}</h4>
+      <p className="text-xs text-neutral-400 max-w-xs mb-5 leading-relaxed">{description}</p>
       
       {actionLabel && actionHref && (
         <Link href={actionHref}>

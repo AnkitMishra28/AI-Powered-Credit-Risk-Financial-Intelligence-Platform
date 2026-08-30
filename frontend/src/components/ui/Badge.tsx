@@ -2,7 +2,7 @@ import React from "react";
 import { cn } from "@/lib/utils";
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-  variant?: "low-risk" | "medium-risk" | "high-risk" | "emerald" | "blue" | "amber" | "rose" | "slate" | "violet";
+  variant?: "low-risk" | "medium-risk" | "high-risk" | "emerald" | "lime" | "blue" | "amber" | "rose" | "slate" | "violet";
   size?: "sm" | "md";
   showDot?: boolean;
 }
@@ -15,35 +15,37 @@ export function Badge({
   children,
   ...props
 }: BadgeProps) {
-  const baseStyles = "inline-flex items-center font-medium rounded-full border transition-colors";
+  const baseStyles = "inline-flex items-center rounded-full border transition-colors select-none";
 
   const sizeStyles = {
-    sm: "text-[11px] px-2 py-0.5 gap-1.5",
-    md: "text-xs px-2.5 py-1 gap-1.5",
+    sm: "text-xs px-2.5 py-0.5 gap-1.5 font-medium",
+    md: "text-xs px-3 py-1 gap-1.5 font-semibold",
   };
 
   const variantStyles = {
-    "low-risk": "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
-    "medium-risk": "bg-amber-500/10 text-amber-400 border-amber-500/30",
-    "high-risk": "bg-rose-500/10 text-rose-400 border-rose-500/30",
-    emerald: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
-    blue: "bg-blue-500/10 text-blue-400 border-blue-500/30",
-    amber: "bg-amber-500/10 text-amber-400 border-amber-500/30",
-    rose: "bg-rose-500/10 text-rose-400 border-rose-500/30",
-    slate: "bg-slate-800 text-slate-300 border-slate-700",
-    violet: "bg-violet-500/10 text-violet-400 border-violet-500/30",
+    "low-risk": "bg-emerald-500/10 text-emerald-300 border-emerald-500/30",
+    "medium-risk": "bg-amber-500/10 text-amber-300 border-amber-500/30",
+    "high-risk": "bg-rose-500/10 text-rose-300 border-rose-500/30",
+    emerald: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30",
+    lime: "bg-lime-500/10 text-lime-300 border-lime-500/30",
+    blue: "bg-sky-500/10 text-sky-300 border-sky-500/30",
+    amber: "bg-amber-500/10 text-amber-300 border-amber-500/30",
+    rose: "bg-rose-500/10 text-rose-300 border-rose-500/30",
+    slate: "bg-[#121A14] text-neutral-300 border-white/10",
+    violet: "bg-emerald-950/40 text-emerald-300 border-emerald-500/30",
   };
 
   const dotColors = {
     "low-risk": "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]",
     "medium-risk": "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]",
     "high-risk": "bg-rose-400 shadow-[0_0_8px_rgba(244,63,94,0.8)]",
-    emerald: "bg-emerald-400",
-    blue: "bg-blue-400",
-    amber: "bg-amber-400",
-    rose: "bg-rose-400",
-    slate: "bg-slate-400",
-    violet: "bg-violet-400",
+    emerald: "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]",
+    lime: "bg-lime-400 shadow-[0_0_8px_rgba(163,230,53,0.8)]",
+    blue: "bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.8)]",
+    amber: "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]",
+    rose: "bg-rose-400 shadow-[0_0_8px_rgba(244,63,94,0.8)]",
+    slate: "bg-neutral-400",
+    violet: "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]",
   };
 
   return (

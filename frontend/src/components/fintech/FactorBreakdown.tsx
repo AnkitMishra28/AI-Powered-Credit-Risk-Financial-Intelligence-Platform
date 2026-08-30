@@ -17,7 +17,7 @@ export function FactorBreakdown({ factors, compact = false }: FactorBreakdownPro
       case "optimal":
         return <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />;
       case "good":
-        return <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" />;
+        return <CheckCircle2 className="w-4 h-4 text-emerald-300 shrink-0" />;
       case "warning":
         return <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />;
       case "critical":
@@ -30,7 +30,7 @@ export function FactorBreakdown({ factors, compact = false }: FactorBreakdownPro
       case "optimal":
         return <Badge variant="emerald" size="sm">Optimal</Badge>;
       case "good":
-        return <Badge variant="blue" size="sm">Good</Badge>;
+        return <Badge variant="lime" size="sm">Good</Badge>;
       case "warning":
         return <Badge variant="amber" size="sm">Action Needed</Badge>;
       case "critical":
@@ -43,28 +43,28 @@ export function FactorBreakdown({ factors, compact = false }: FactorBreakdownPro
       {factors.map((factor) => (
         <Card
           key={factor.factorId}
-          className="p-5 flex flex-col justify-between hover:border-slate-700 transition-all bg-slate-900/90"
+          className="p-5 md:p-6 flex flex-col justify-between hover:border-emerald-500/30 transition-all bg-[#0B110D] border-white/10"
         >
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between mb-2.5">
+              <div className="flex items-center gap-2.5">
                 {getStatusIcon(factor.status)}
-                <span className="text-sm font-bold text-slate-100">{factor.name}</span>
+                <span className="text-sm font-bold text-white tracking-tight">{factor.name}</span>
               </div>
               {getStatusBadge(factor.status)}
             </div>
 
-            <p className="text-xs text-slate-400 mb-3 leading-relaxed">
+            <p className="text-xs text-neutral-400 mb-3.5 leading-relaxed">
               {factor.description}
             </p>
           </div>
 
-          <div className="space-y-2 mt-2 pt-3 border-t border-slate-800/80">
+          <div className="space-y-2 mt-2 pt-3 border-t border-white/[0.08]">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400 text-[11px]">Factor Score</span>
-              <div className="flex items-baseline gap-1">
-                <span className="font-bold text-slate-100 font-mono text-sm">{factor.score}%</span>
-                <span className="text-[10px] text-slate-500 font-mono">(Weight: {(factor.weight * 100).toFixed(0)}%)</span>
+              <span className="text-neutral-400 text-xs">Factor Index</span>
+              <div className="flex items-baseline gap-1.5">
+                <span className="font-bold text-white font-mono text-sm">{factor.score}%</span>
+                <span className="text-xs text-neutral-500 font-mono">(Weight: {(factor.weight * 100).toFixed(0)}%)</span>
               </div>
             </div>
 
@@ -74,7 +74,7 @@ export function FactorBreakdown({ factors, compact = false }: FactorBreakdownPro
                 factor.status === "optimal"
                   ? "emerald"
                   : factor.status === "good"
-                  ? "blue"
+                  ? "lime"
                   : factor.status === "warning"
                   ? "amber"
                   : "rose"
@@ -82,9 +82,9 @@ export function FactorBreakdown({ factors, compact = false }: FactorBreakdownPro
               size="sm"
             />
 
-            <div className="text-[11px] text-slate-400 mt-1.5 flex items-center gap-1.5">
-              <span className="font-semibold text-slate-300">Impact:</span>
-              <span className="truncate">{factor.impactDetail}</span>
+            <div className="text-xs text-neutral-400 mt-2 flex items-center gap-1.5">
+              <span className="font-semibold text-neutral-300">Impact:</span>
+              <span className="truncate text-neutral-400">{factor.impactDetail}</span>
             </div>
           </div>
         </Card>

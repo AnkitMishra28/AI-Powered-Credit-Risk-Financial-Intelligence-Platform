@@ -2,7 +2,7 @@ import React from "react";
 import { cn } from "@/lib/utils";
 
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: "default" | "subtle" | "glow-blue" | "glow-emerald" | "glow-amber";
+  variant?: "default" | "elevated" | "subtle" | "glow-emerald" | "glow-amber" | "glow-rose";
   hoverable?: boolean;
 }
 
@@ -14,11 +14,12 @@ export function Card({
   ...props
 }: CardProps) {
   const variantStyles = {
-    default: "fintech-card bg-slate-900/90",
-    subtle: "bg-slate-900/50 border border-slate-800/80 rounded-2xl",
-    "glow-blue": "fintech-card fintech-gradient-blue",
+    default: "fintech-card bg-[#0B110D]",
+    elevated: "bg-[#101712] border border-white/10 shadow-2xl rounded-2xl",
+    subtle: "bg-[#080D09]/90 border border-white/5 rounded-2xl",
     "glow-emerald": "fintech-card fintech-gradient-emerald",
     "glow-amber": "fintech-card fintech-gradient-amber",
+    "glow-rose": "fintech-card fintech-gradient-rose",
   };
 
   return (
@@ -42,7 +43,7 @@ export function CardHeader({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("flex items-center justify-between pb-4 border-b border-slate-800/60 mb-4", className)} {...props}>
+    <div className={cn("flex items-center justify-between pb-4 border-b border-white/[0.07] mb-4", className)} {...props}>
       {children}
     </div>
   );
@@ -54,7 +55,7 @@ export function CardTitle({
   ...props
 }: React.HTMLAttributes<HTMLHeadingElement>) {
   return (
-    <h3 className={cn("text-base md:text-lg font-semibold text-slate-100 tracking-tight", className)} {...props}>
+    <h3 className={cn("text-base md:text-lg font-bold text-white tracking-tight", className)} {...props}>
       {children}
     </h3>
   );
@@ -66,7 +67,7 @@ export function CardDescription({
   ...props
 }: React.HTMLAttributes<HTMLParagraphElement>) {
   return (
-    <p className={cn("text-xs md:text-sm text-slate-400 mt-1", className)} {...props}>
+    <p className={cn("text-xs md:text-sm text-neutral-400 mt-1 leading-relaxed", className)} {...props}>
       {children}
     </p>
   );
@@ -90,7 +91,7 @@ export function CardFooter({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("pt-4 border-t border-slate-800/60 mt-4 flex items-center justify-between", className)} {...props}>
+    <div className={cn("pt-4 border-t border-white/[0.07] mt-4 flex items-center justify-between", className)} {...props}>
       {children}
     </div>
   );

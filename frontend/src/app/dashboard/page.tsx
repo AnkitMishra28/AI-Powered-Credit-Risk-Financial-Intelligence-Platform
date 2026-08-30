@@ -34,17 +34,17 @@ export default function DashboardPage() {
     <AppLayout>
       {/* Top Greeting and Header */}
       <PageHeader
-        title={`Welcome back, ${user?.fullName?.split(" ")[0] || "Alex"}`}
-        subtitle="Your real-time financial intelligence snapshot and credit risk diagnostics."
+        title={`Good morning, ${user?.fullName?.split(" ")[0] || "Alex"}`}
+        subtitle="Here is what CreditLens sees across your credit lines, cashflow velocity, and algorithmic risk signals."
         badge={
-          <Badge variant="blue" size="sm">
-            Phase 1 Portfolio Build
+          <Badge variant="emerald" size="sm" showDot>
+            Live Financial Intelligence
           </Badge>
         }
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <Link href="/copilot">
-              <Button size="sm" variant="primary" className="bg-purple-600 hover:bg-purple-500 border-purple-500/30 text-xs" leftIcon={<Bot className="w-3.5 h-3.5" />}>
+              <Button size="sm" variant="emerald" className="text-xs font-bold shadow-md shadow-emerald-950/60" leftIcon={<Bot className="w-4 h-4" />}>
                 Ask CreditLens
               </Button>
             </Link>
@@ -52,47 +52,47 @@ export default function DashboardPage() {
         }
       />
 
-      {/* 4 Primary Fintech KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      {/* 4 Primary Fintech Intelligence KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {/* KPI 1: Credit Health */}
         <MetricCard
           title="Credit Health"
           value={`${creditHealth.healthScore} / 1000`}
           statusBadge={creditHealth.scoreTier}
           statusVariant="emerald"
-          deltaText={`+${creditHealth.scoreDelta} pts`}
+          deltaText={`+${creditHealth.scoreDelta} pts this month`}
           deltaType="positive"
-          subtitle="Healthy Corridor"
+          subtitle="Optimal Corridor"
           icon={<Activity className="w-4 h-4 text-emerald-400" />}
-          tooltipText="Proprietary CreditLens financial diagnostic score based on repayment patterns and utilization."
+          tooltipText="Proprietary CreditLens financial diagnostic score computed from payment patterns and credit line utilization."
           highlightColor="emerald"
         />
 
         {/* KPI 2: Risk Level */}
         <MetricCard
-          title="Credit Risk Level"
+          title="Credit Risk Signal"
           value={riskAnalysis.riskCategory}
           statusBadge={`${riskAnalysis.confidencePercentage}% Conf.`}
-          statusVariant="blue"
-          deltaText="Stable Tier"
+          statusVariant="emerald"
+          deltaText="82% Low Risk Prob"
           deltaType="positive"
           subtitle="Low Default Probability"
-          icon={<ShieldCheck className="w-4 h-4 text-blue-400" />}
+          icon={<ShieldCheck className="w-4 h-4 text-emerald-400" />}
           tooltipText="Machine learning multi-class risk classification based on verified cashflow and debt ratios."
-          highlightColor="blue"
+          highlightColor="emerald"
         />
 
         {/* KPI 3: Credit Utilization */}
         <MetricCard
-          title="Credit Utilization"
+          title="Revolving Utilization"
           value="68.0%"
           statusBadge="Action Needed"
           statusVariant="amber"
-          deltaText="↓ 7% vs last month"
+          deltaText="↓ 7% vs last cycle"
           deltaType="positive"
           subtitle="Target <30% (₹75k)"
           icon={<Percent className="w-4 h-4 text-amber-400" />}
-          tooltipText="Total revolving credit balance against your aggregate ₹2,50,000 credit limit."
+          tooltipText="Total revolving credit card balance against aggregate ₹2,50,000 credit limit."
           highlightColor="amber"
         />
 
@@ -102,29 +102,30 @@ export default function DashboardPage() {
           value={formatINR(spending.totalSpendingCurrentMonth)}
           statusBadge="-4.2% MoM"
           statusVariant="emerald"
-          deltaText="Within Budget"
+          deltaText="Controlled Run-rate"
           deltaType="positive"
-          subtitle={`Avg: ${formatINR(spending.averageMonthlySpend)}`}
-          icon={<Wallet className="w-4 h-4 text-purple-400" />}
-          tooltipText="Total transactions recorded across all registered accounts this billing cycle."
+          subtitle={`6-mo Avg: ${formatINR(spending.averageMonthlySpend)}`}
+          icon={<Wallet className="w-4 h-4 text-emerald-400" />}
+          tooltipText="Total recorded transactions across registered accounts during this billing cycle."
+          highlightColor="emerald"
         />
       </div>
 
       {/* Main Analytics Grid: Credit Health Gauge & Risk Distribution */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
-        {/* Left 5 Cols: Score Card */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
+        {/* Left 5 Cols: Score Card as the Primary Visual Anchor */}
         <div className="lg:col-span-5 flex flex-col">
           <ScoreCard creditHealth={creditHealth} />
         </div>
 
-        {/* Right 7 Cols: Risk Distribution & Explainability */}
+        {/* Right 7 Cols: Risk Distribution & Analytical Explainability */}
         <div className="lg:col-span-7 flex flex-col">
           <RiskDistributionCard riskData={riskAnalysis} />
         </div>
       </div>
 
-      {/* Spending Breakdown & AI Fact Insights Card */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+      {/* Spending Breakdown & AI Copilot Insights Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
         {/* Spending Category Allocation Donut/Bar */}
         <div className="lg:col-span-6">
           <SpendingCategoryDonut
@@ -133,41 +134,44 @@ export default function DashboardPage() {
           />
         </div>
 
-        {/* AI Grounded Insights & Copilot Teaser */}
-        <div className="lg:col-span-6 space-y-4">
-          {/* Anomaly card */}
+        {/* AI Grounded Insights & Copilot Prompt Cards */}
+        <div className="lg:col-span-6 space-y-4 flex flex-col justify-between">
+          {/* Anomaly Card */}
           {spending.anomalies.length > 0 && (
             <AnomalyCard anomaly={spending.anomalies[0]} />
           )}
 
-          {/* Quick Ask CreditLens Widget */}
-          <Card className="p-5 bg-slate-900/90 border-purple-500/20">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center">
+          {/* Quick Ask CreditLens Copilot Intelligence Card */}
+          <Card className="p-5 md:p-6 bg-[#0B110D] border-emerald-500/25">
+            <div className="flex items-center justify-between pb-3.5 border-b border-white/[0.08] mb-3.5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center border border-emerald-500/25">
                   <Bot className="w-4 h-4" />
                 </div>
-                <CardTitle className="text-sm text-slate-100">Ask CreditLens Intelligence</CardTitle>
+                <div>
+                  <CardTitle className="text-sm font-bold text-white">Ask CreditLens Intelligence</CardTitle>
+                  <p className="text-xs text-neutral-400">Grounded in your financial metrics & RBI guidelines</p>
+                </div>
               </div>
-              <Badge variant="violet" size="sm">RAG Assistant</Badge>
+              <Badge variant="emerald" size="sm">RAG Assistant</Badge>
             </div>
 
-            <p className="text-xs text-slate-300 mb-3 leading-relaxed">
-              Have questions about how your 68% utilization or 31% dining surge affects your credit score?
+            <p className="text-xs text-neutral-300 mb-3.5 leading-relaxed">
+              Have questions about your 68% utilization ratio, minimum payment implications, or recent dining anomalies?
             </p>
 
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <Link href="/copilot" className="block">
-                <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-purple-500/40 text-xs text-slate-300 flex items-center justify-between group transition-colors">
-                  <span>&ldquo;What happens if I only pay the minimum amount on my credit card?&rdquo;</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-purple-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                <div className="p-3 rounded-xl bg-[#0E1510] border border-white/[0.08] hover:border-emerald-500/40 text-xs text-neutral-200 flex items-center justify-between group transition-colors">
+                  <span>&ldquo;What happens if I only pay the minimum amount due on my credit card?&rdquo;</span>
+                  <ArrowRight className="w-4 h-4 text-emerald-400 group-hover:translate-x-1 transition-transform shrink-0 ml-2" />
                 </div>
               </Link>
 
               <Link href="/copilot" className="block">
-                <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-purple-500/40 text-xs text-slate-300 flex items-center justify-between group transition-colors">
-                  <span>&ldquo;How fast will my credit health improve if I reduce utilization to 30%?&rdquo;</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-purple-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                <div className="p-3 rounded-xl bg-[#0E1510] border border-white/[0.08] hover:border-emerald-500/40 text-xs text-neutral-200 flex items-center justify-between group transition-colors">
+                  <span>&ldquo;How fast will my credit health score improve if I reduce utilization to 30%?&rdquo;</span>
+                  <ArrowRight className="w-4 h-4 text-emerald-400 group-hover:translate-x-1 transition-transform shrink-0 ml-2" />
                 </div>
               </Link>
             </div>
@@ -176,7 +180,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Recent Transactions Ledger */}
-      <div className="mb-6">
+      <div className="mb-8">
         <TransactionTable
           transactions={spending.recentTransactions}
           title="Recent Account Transactions"

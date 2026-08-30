@@ -12,10 +12,10 @@ export interface MetricCardProps {
   deltaText?: string;
   deltaType?: "positive" | "negative" | "neutral";
   statusBadge?: string;
-  statusVariant?: "low-risk" | "medium-risk" | "high-risk" | "emerald" | "blue" | "amber" | "rose" | "slate";
+  statusVariant?: "low-risk" | "medium-risk" | "high-risk" | "emerald" | "lime" | "blue" | "amber" | "rose" | "slate";
   icon?: React.ReactNode;
   tooltipText?: string;
-  highlightColor?: "emerald" | "blue" | "amber" | "rose";
+  highlightColor?: "emerald" | "lime" | "blue" | "amber" | "rose";
   className?: string;
 }
 
@@ -37,34 +37,34 @@ export function MetricCard({
   return (
     <Card
       className={cn(
-        "relative overflow-hidden p-5 flex flex-col justify-between hover:border-slate-700/80 transition-all group",
-        highlightColor === "emerald" && "hover:border-emerald-500/30",
-        highlightColor === "blue" && "hover:border-blue-500/30",
-        highlightColor === "amber" && "hover:border-amber-500/30",
+        "relative overflow-hidden p-5 md:p-6 flex flex-col justify-between hover:border-emerald-500/30 transition-all bg-[#0B110D] group",
+        highlightColor === "emerald" && "hover:border-emerald-500/40 hover:bg-[#0E1510]",
+        highlightColor === "amber" && "hover:border-amber-500/40",
+        highlightColor === "rose" && "hover:border-rose-500/40",
         className
       )}
     >
       {/* Top row: Title + Tooltip + Icon */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs font-semibold text-slate-400">{title}</span>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">{title}</span>
           {tooltipText && (
             <Tooltip content={tooltipText}>
-              <Info className="w-3.5 h-3.5 text-slate-500 hover:text-slate-300 cursor-pointer" />
+              <Info className="w-3.5 h-3.5 text-neutral-500 hover:text-neutral-300 cursor-pointer" />
             </Tooltip>
           )}
         </div>
 
         {icon && (
-          <div className="w-8 h-8 rounded-xl bg-slate-800/80 border border-slate-700/60 flex items-center justify-center text-slate-400 group-hover:text-slate-200 transition-colors">
+          <div className="w-8 h-8 rounded-xl bg-[#121A14] border border-white/10 flex items-center justify-center text-neutral-400 group-hover:text-emerald-400 transition-colors">
             {icon}
           </div>
         )}
       </div>
 
       {/* Center Value */}
-      <div className="my-1">
-        <div className="flex items-baseline gap-2">
+      <div className="my-1.5">
+        <div className="flex items-baseline gap-2.5 flex-wrap">
           <span className="text-2xl md:text-3xl font-black text-white tracking-tight font-mono">
             {value}
           </span>
@@ -77,11 +77,11 @@ export function MetricCard({
       </div>
 
       {/* Bottom row: Delta & Subtitle */}
-      <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-800/40 text-xs">
+      <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/[0.07] text-xs">
         {deltaText && (
           <div
             className={cn(
-              "flex items-center gap-1 font-semibold text-[11px]",
+              "flex items-center gap-1 font-semibold text-xs",
               isPositiveDelta ? "text-emerald-400" : "text-rose-400"
             )}
           >
@@ -95,7 +95,7 @@ export function MetricCard({
         )}
 
         {subtitle && (
-          <span className="text-[11px] text-slate-400 truncate max-w-[180px]">
+          <span className="text-xs text-neutral-400 truncate max-w-[190px]">
             {subtitle}
           </span>
         )}

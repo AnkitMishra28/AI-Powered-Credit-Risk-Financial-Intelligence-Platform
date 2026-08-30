@@ -16,12 +16,12 @@ export function ErrorState({
   isRetrying = false,
 }: ErrorStateProps) {
   return (
-    <div className="fintech-card p-8 flex flex-col items-center justify-center text-center max-w-md mx-auto my-6 border-rose-500/30 bg-rose-500/5">
-      <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 mb-3 shadow-[0_0_15px_rgba(244,63,94,0.2)]">
+    <div className="fintech-card p-8 flex flex-col items-center justify-center text-center max-w-md mx-auto my-6 border-rose-500/30 bg-rose-950/10">
+      <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 mb-3 shadow-[0_0_15px_rgba(244,63,94,0.15)]">
         <AlertTriangle className="w-6 h-6" />
       </div>
-      <h4 className="text-sm font-bold text-slate-100 mb-1">{title}</h4>
-      <p className="text-xs text-slate-400 max-w-xs mb-4 leading-relaxed">{description}</p>
+      <h4 className="text-sm font-bold text-white mb-1">{title}</h4>
+      <p className="text-xs text-neutral-400 max-w-xs mb-4 leading-relaxed">{description}</p>
       
       {onRetry && (
         <Button

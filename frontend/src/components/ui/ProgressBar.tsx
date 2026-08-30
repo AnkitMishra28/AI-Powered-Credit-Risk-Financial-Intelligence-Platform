@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 export interface ProgressBarProps {
   value: number; // 0 - 100
   max?: number;
-  variant?: "emerald" | "blue" | "amber" | "rose" | "dynamic";
+  variant?: "emerald" | "lime" | "blue" | "amber" | "rose" | "dynamic";
   size?: "sm" | "md" | "lg";
   showLabel?: boolean;
   label?: string;
@@ -23,35 +23,36 @@ export function ProgressBar({
   const percentage = Math.min(Math.max((value / max) * 100, 0), 100);
 
   const getDynamicColor = (pct: number) => {
-    if (pct >= 80) return "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]";
-    if (pct >= 60) return "bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]";
-    if (pct >= 40) return "bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]";
-    return "bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]";
+    if (pct >= 80) return "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.35)]";
+    if (pct >= 60) return "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.35)]";
+    if (pct >= 40) return "bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.35)]";
+    return "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.35)]";
   };
 
   const variantColors = {
-    emerald: "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]",
-    blue: "bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]",
-    amber: "bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]",
-    rose: "bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]",
+    emerald: "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.35)]",
+    lime: "bg-lime-400 shadow-[0_0_8px_rgba(163,230,53,0.35)]",
+    blue: "bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.35)]",
+    amber: "bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.35)]",
+    rose: "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.35)]",
     dynamic: getDynamicColor(percentage),
   };
 
   const heightStyles = {
-    sm: "h-1.5",
-    md: "h-2.5",
-    lg: "h-3.5",
+    sm: "h-2",
+    md: "h-3",
+    lg: "h-4",
   };
 
   return (
     <div className={cn("w-full space-y-1.5", className)}>
       {(showLabel || label) && (
         <div className="flex justify-between items-center text-xs">
-          {label && <span className="font-medium text-slate-300">{label}</span>}
-          {showLabel && <span className="text-slate-400 font-mono">{percentage.toFixed(0)}%</span>}
+          {label && <span className="font-semibold text-neutral-300">{label}</span>}
+          {showLabel && <span className="text-neutral-400 font-mono font-medium">{percentage.toFixed(0)}%</span>}
         </div>
       )}
-      <div className={cn("w-full bg-slate-800 rounded-full overflow-hidden p-0.5", heightStyles[size])}>
+      <div className={cn("w-full bg-[#121A14] rounded-full overflow-hidden p-0.5 border border-white/5", heightStyles[size])}>
         <div
           className={cn("h-full rounded-full transition-all duration-700 ease-out", variantColors[variant])}
           style={{ width: `${percentage}%` }}

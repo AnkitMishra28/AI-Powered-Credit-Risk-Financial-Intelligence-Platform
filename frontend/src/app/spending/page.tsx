@@ -20,7 +20,7 @@ export default function SpendingPage() {
   return (
     <AppLayout>
       <PageHeader
-        title="Spending Intelligence & Cashflow"
+        title="Spending Intelligence & Cashflow Velocity"
         subtitle="Automated transaction categorization, velocity tracking, and behavioral anomaly detection."
         badge={
           <Badge variant="amber" size="sm" showDot>
@@ -47,12 +47,12 @@ export default function SpendingPage() {
           title="6-Month Average Outflow"
           value={formatINR(spending.averageMonthlySpend)}
           statusBadge="Baseline"
-          statusVariant="blue"
+          statusVariant="emerald"
           deltaText="Stable Run-rate"
           deltaType="positive"
           subtitle="Historical monthly mean"
-          icon={<CreditCard className="w-4 h-4 text-blue-400" />}
-          highlightColor="blue"
+          icon={<CreditCard className="w-4 h-4 text-emerald-300" />}
+          highlightColor="emerald"
         />
 
         <MetricCard
@@ -71,11 +71,11 @@ export default function SpendingPage() {
       {/* Detected Anomalies Showcase */}
       {spending.anomalies.length > 0 && (
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">
+          <div className="flex items-center justify-between mb-3.5">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">
               Pattern Anomalies Detected
             </h3>
-            <span className="text-xs text-slate-500 font-mono">Unusual spending rate vs baseline</span>
+            <span className="text-xs text-neutral-500 font-mono">Unusual spending velocity vs 3-month baseline</span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -17,16 +17,16 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <div className={cn("flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-800/60", className)}>
+    <div className={cn("flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-5 border-b border-white/[0.08]", className)}>
       <div>
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl md:text-2xl font-extrabold text-white tracking-tight">
+        <div className="flex items-center gap-3 flex-wrap">
+          <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
             {title}
           </h1>
           {badge}
         </div>
         {subtitle && (
-          <p className="text-xs md:text-sm text-slate-400 mt-1 max-w-2xl leading-relaxed">
+          <p className="text-xs md:text-sm text-neutral-400 mt-1.5 max-w-3xl leading-relaxed">
             {subtitle}
           </p>
         )}
