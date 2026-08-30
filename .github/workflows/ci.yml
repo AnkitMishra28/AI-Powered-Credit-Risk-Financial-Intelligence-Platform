@@ -106,7 +106,7 @@ jobs:
 
       - name: Run Next.js Production Build
         run: |
-          npx next build
+          npm run build
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
           NEXT_TELEMETRY_DISABLED: 1
