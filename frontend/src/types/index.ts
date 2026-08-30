@@ -98,6 +98,18 @@ export interface SpendingAnomaly {
   severity: "info" | "warning" | "critical";
 }
 
+export interface RecurringPayment {
+  id: string;
+  merchant: string;
+  category: string;
+  estimatedAmount: number;
+  frequency: string;
+  lastPaymentDate: string;
+  nextExpectedDate?: string;
+  confidence: number;
+  status: string;
+}
+
 export interface Transaction {
   id: string;
   date: string;
@@ -107,15 +119,39 @@ export interface Transaction {
   accountType: string;
   isAnomaly: boolean;
   anomalyReason?: string;
+  transactionType?: "debit" | "credit";
+  originalDescription?: string;
+  confidence?: number;
+  classificationMethod?: string;
+  balance?: number;
+}
+
+export interface StatementSummary {
+  id: string;
+  userId: number;
+  filename: string;
+  fileType: "csv" | "pdf";
+  fileSizeBytes: number;
+  uploadedAt: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  transactionCount: number;
+  totalDebits: number;
+  totalCredits: number;
+  errorMessage?: string;
 }
 
 export interface SpendingIntelligenceData {
   totalSpendingCurrentMonth: number;
   spendingDeltaPct: number;
   averageMonthlySpend: number;
+  totalIncomeCurrentMonth?: number;
+  netCashflow?: number;
+  discretionarySpending?: number;
+  essentialSpending?: number;
   categories: CategorySpend[];
   monthlyTrend: MonthlySpendTrend[];
   anomalies: SpendingAnomaly[];
+  recurringPayments?: RecurringPayment[];
   recentTransactions: Transaction[];
 }
 

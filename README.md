@@ -12,19 +12,22 @@ CreditLens is a production-grade full-stack fintech platform designed to bridge 
 Unlike generic finance dashboards or simple LLM wrappers, CreditLens enforces strict architectural boundaries:
 
 ```
-DETERMINISTIC FINANCIAL LOGIC  ──►  Exact 0–1000 Credit Health Score (Rule-Based & Transparent)
+DETERMINISTIC INGESTION PIPELINE ──►  Statement Ingestion (CSV/PDF) ➔ Normalization ➔ 16-Category Taxonomy
            │
            ▼
-MACHINE LEARNING (XGBoost)     ──►  Calibrated Multi-Class Default Risk Probabilities (Low/Med/High)
+DETERMINISTIC FINANCIAL LOGIC    ──►  Exact 0–1000 Credit Health Score & Statistical Anomalies (Rule-Based)
            │
            ▼
-EXPLAINABILITY (TreeSHAP)      ──►  Deterministic Feature Attribution Deltas & Positive/Watch Signals
+MACHINE LEARNING (XGBoost)       ──►  Calibrated Default Risk Probabilities (Binary Good/Bad mapped to Tiers)
            │
            ▼
-RAG KNOWLEDGE RETRIEVAL        ──►  pgvector Semantic Vector Search over Regulatory Directives (RBI)
+EXPLAINABILITY (TreeSHAP)        ──►  Deterministic Feature Attribution Deltas & Positive/Watch Signals
            │
            ▼
-LLM SYNTHESIS & INSIGHTS       ──►  Natural Language Grounded Explanations (Zero Hallucinated Numbers)
+RAG KNOWLEDGE RETRIEVAL          ──►  pgvector Semantic Vector Search over Regulatory Directives (RBI)
+           │
+           ▼
+LLM SYNTHESIS & INSIGHTS         ──►  Natural Language Grounded Explanations (Zero Hallucinated Numbers)
 ```
 
 ---
@@ -44,16 +47,17 @@ LLM SYNTHESIS & INSIGHTS       ──►  Natural Language Grounded Explanations
                        │        Pydantic v2 / AsyncPG           │
                        └───────────┬───────────────┬────────────┘
                                    │               │
-            ┌──────────────────────┘               └──────────────────────┐
+            ┌──────────────────────┴───────────────┴──────────────────────┐
             ▼                                                             ▼
 ┌───────────────────────────────┐                             ┌───────────────────────────────┐
-│     ML Risk & Explainability  │                             │         RAG Pipeline          │
-│   (Scikit-learn / XGBoost)    │                             │    (pgvector + Gemini API)    │
+│  Statement Ingestion & Rules  │                             │     ML Risk & Explainability  │
+│      (CSV & PDF Parsers)      │                             │   (Scikit-learn / XGBoost)    │
 ├───────────────────────────────┤                             ├───────────────────────────────┤
-│ • Feature Engineering Engine  │                             │ • Regulatory Embeddings       │
-│ • ColumnTransformer Pipeline  │                             │ • Semantic Vector Search      │
-│ • XGBoost Classifier          │                             │ • Grounded Fact Prompting     │
-│ • TreeSHAP Explainability     │                             │ • Verified Document Sources   │
+│ • Canonical Column Resolution │                             │ • Feature Engineering Engine  │
+│ • Merchant Entity Normalizer  │                             │ • ColumnTransformer Pipeline  │
+│ • 16-Category Taxonomy Engine │                             │ • XGBoost Classifier          │
+│ • Statistical Anomaly (z-score│                             │ • TreeSHAP Explainability     │
+│ • Recurring Payment Detector  │                             │ • 0–1000 Credit Health Score  │
 └───────────────┬───────────────┘                             └───────────────┬───────────────┘
                 │                                                             │
                 └──────────────────────────────┬──────────────────────────────┘
@@ -61,106 +65,65 @@ LLM SYNTHESIS & INSIGHTS       ──►  Natural Language Grounded Explanations
                                ┌───────────────────────────────┐
                                │     PostgreSQL + pgvector     │
                                │  Users, Statements, Metrics,  │
-                               │  Predictions, Knowledge Base  │
+                               │  Transactions, Predictions    │
                                └───────────────────────────────┘
 ```
 
 ---
 
-## 📊 Phase 3: Real Credit Intelligence Engine
+## 📂 Phase 4: Financial Statement & Transaction Intelligence Subsystem
 
-### 1. Public Benchmark Dataset
+### 1. Ingestion Pipeline & Parsers
+- **Multi-Format Ingestion**: Supports `.csv` and text-based `.pdf` statements up to 10 MB.
+- **CSV Statement Parser** ([`csv_parser.py`](backend/app/ingestion/csv_parser.py)): Resolves varying bank headers (Date, Description, Debit, Credit, Amount, Balance), cleans ISO/UK/Indian date formats, handles currency symbols and negative signs, and deduplicates identical records.
+- **PDF Statement Parser** ([`pdf_parser.py`](backend/app/ingestion/pdf_parser.py)): Deterministically parses tabular text stream layouts via `pypdf` without relying on external OCR services or non-deterministic LLMs.
+- **Merchant Entity Normalizer** ([`normalizer.py`](backend/app/ingestion/normalizer.py)): Strips gateway prefixes (`UPI-`, `POS `, `IMPS-`, `NEFT-`, `BILLDESK`) and corporate suffixes (`*ONLINE`, `PVT LTD`, `.COM`), mapping raw narrations (e.g. `SWIGGY*INSTAMART BLR`) to clean merchant identities (`SWIGGY`) while preserving `original_description` for auditability.
+- **16-Category Taxonomy Engine** ([`categorization.py`](backend/app/ingestion/categorization.py)): Classifies transactions into standard financial categories (`Food & Dining`, `Shopping`, `Transport`, `Entertainment`, `Healthcare`, `Utilities`, `Rent & Housing`, `Education`, `Travel`, `Insurance`, `Groceries`, `Salary / Income`, `Transfer`, `EMI / Loan`, `Cash Withdrawal`, `Other`) with confidence scoring and classification method provenance (`merchant_rule`, `keyword_pattern`, `fallback_default`).
+
+### 2. Statistical Anomaly & Recurring Detection
+- **Statistical Anomaly Detector** ([`anomaly_detector.py`](backend/app/ingestion/anomaly_detector.py)): Evaluates category spending surges ($> 25\%$ vs 3-month baseline) and single large transaction outliers ($> \mu + 1.8\sigma$) with explicit mathematical baseline transparency.
+- **Recurring Payment Detection** ([`recurring_detector.py`](backend/app/ingestion/recurring_detector.py)): Detects streaming subscriptions, regular utility bills, and loan EMIs with estimated amount, interval frequency, and confidence matching.
+
+---
+
+## 📊 Phase 3: Machine Learning & Credit Health Engine
+
+### 1. Public Benchmark Dataset & Classification Framing
 - **Dataset**: South German Credit (*Groemping, 2020 / UCI Machine Learning Repository / OpenML `credit-g`*).
-- **Instances**: 1,000 credit records with 20 input attributes.
-- **Target**: `class` (0 = Good Credit / Non-Default: 700 instances, 1 = Bad Credit / Default: 300 instances).
-- **Class Imbalance**: 2.33:1 ratio (accounted for via stratified splitting and `scale_pos_weight=2.33`).
-- **Dataset Limitations**: Historical European banking dataset with D-Mark currency denominations. While it demonstrates authentic credit underwriting dynamics (debt burden, installment rates, stability, past delinquency remarks), it does not directly represent modern Indian consumer UPI/CIBIL credit lines.
+- **Binary Target**: `0` = Good Credit / Non-Default ($700$ records), `1` = Bad Credit / Default ($300$ records).
+- **Framing**: The XGBoost model predicts the underlying binary default probability $P(\text{Default} \mid X)$. CreditLens maps this calibrated probability into presentation tiers (`LOW RISK`, `MEDIUM RISK`, `HIGH RISK`) as a business presentation layer.
 
-### 2. Feature Engineering & Preprocessing
-- **Leakage Prevention**: All scaling (`StandardScaler`), median imputations, and one-hot encodings (`OneHotEncoder`) are encapsulated inside a scikit-learn `ColumnTransformer` fitted strictly on training data.
-- **Engineered Financial Features**:
-  - `monthly_installment_burden`: Estimated monthly repayment load ($\text{credit\_amount} / \text{duration}$).
-  - `credit_to_age_ratio`: Debt leverage relative to borrower lifecycle stage.
-  - `stability_index`: Combined residential and credit history tenure.
-  - `has_delinquency_history`: Binary indicator derived from past delayed or critical remarks.
-  - `savings_buffer_score`: Ordinal emergency buffer indicator (0–4).
-  - `checking_liquidity_score`: Ordinal liquid checking account score (0–3).
-
-### 3. Model Evaluation Results
+### 2. Evaluation Metrics (200 Stratified Test Samples)
 
 | Metric | Logistic Regression (Baseline) | XGBoost Classifier (Primary) |
 | :--- | :---: | :---: |
 | **Accuracy** | 75.00% | **75.50%** |
-| **Precision (Default Class)** | 55.68% | **57.75%** |
-| **Recall (Default Class)** | **81.67%** | 68.33% |
-| **F1-Score** | 66.22% | 62.60% |
+| **Precision (Minority / Default)** | 55.68% | **57.75%** |
+| **Recall (Minority / Default)** | **81.67%** | 68.33% |
+| **F1-Score** | 66.22% | **62.60%** |
 | **ROC-AUC** | 80.80% | **79.87%** |
 | **PR-AUC** | 64.39% | **65.96%** |
-| **Brier Calibration Score** | 0.1814 | **0.1715** |
+| **Brier Score (Calibration)** | 0.1814 | **0.1715** |
 
-- **Confusion Matrix (XGBoost on 200 Test Records)**:
-  - True Negatives (Good predicted Good): **110**
-  - False Positives (Good predicted Bad): **30**
-  - False Negatives (Bad predicted Good): **19**
-  - True Positives (Bad predicted Bad): **41**
+### 3. TreeSHAP Feature Explainability
+- Native tree ensemble Shapley value computation via TreeSHAP.
+- Generates positive safety drivers and watch signals with exact impact deltas.
 
-### 4. TreeSHAP Model Explainability
-- Evaluates exact Shapley values directly across the XGBoost tree ensemble via C++ TreeSHAP.
-- Generates structured attributions indicating both direction and magnitude:
-  - **Risk-Reducing / Positive Drivers**: High payment consistency, low DTI, high savings cushion.
-  - **Risk-Increasing / Watch Signals**: Elevated revolving utilization, short employment tenure, past delays.
-
-### 5. CreditLens Deterministic Credit Health Score (0–1000)
-A fully explainable, transparent financial diagnostic score calculated across 5 weighted dimensions:
-
-$$\text{Score} = \text{PaymentReliability} + \text{UtilizationScore} + \text{DTIScore} + \text{TenureScore} + \text{SpendingStability}$$
-
-1. **Payment Reliability & Consistency** (350 pts / 35%): $350 \times (\text{PaymentRatio})^{1.8}$
-2. **Revolving Credit Utilization** (250 pts / 25%): Non-linear penalty above optimal 30% threshold.
-3. **Debt-to-Income (DTI) Leverage** (200 pts / 20%): Evaluates total monthly EMI + 5% revolving minimum debt drain vs net income.
-4. **Credit History Tenure & Seasoning** (100 pts / 10%): Seasoning of active credit lines (0–5+ years).
-5. **Spending Velocity & Cashflow Stability** (100 pts / 10%): Current monthly spend vs 6-month historical baseline.
-
-**Score Tiers**:
-- `800 – 1000`: **Excellent** (Prime credit health)
-- `700 – 799`: **Healthy** (Strong standing, e.g. Alex Mercer demo score = 775 / 1000)
-- `600 – 699`: **Fair** (Elevated utilization or high DTI)
-- `0 – 599`: **Needs Attention** (Elevated default risk or severe payment delays)
-
----
-
-## 🛠️ Technology Stack
-
-### Frontend
-- **Framework**: Next.js 16 (Turbopack, App Router)
-- **UI Library**: React 19 + TypeScript 5
-- **Styling**: Tailwind CSS v4 + Obsidian/Emerald Fintech Tokens
-- **Icons**: Lucide React
-- **Wire Contract Mappers**: Type-safe DTO adapters (`frontend/src/services/mappers.ts`)
-
-### Backend & Machine Learning
-- **API Framework**: FastAPI + Uvicorn (ASGI)
-- **Validation**: Pydantic v2 + Pydantic-Settings
-- **Gradient Boosting**: XGBoost v3.2
-- **Scikit-Learn**: v1.9 (Pipeline, ColumnTransformer, StandardScaler, OneHotEncoder)
-- **Explainability**: SHAP v0.51 + Native XGBoost TreeSHAP
-- **Serialization**: Joblib v1.5
-- **Data Engine**: Pandas v2.2 + NumPy v2.4 + SciPy v1.17
+### 4. Deterministic Credit Health Score (0–1000)
+- **Payment Consistency & Reliability** ($350$ pts / $35\%$)
+- **Revolving Credit Utilization** ($250$ pts / $25\%$)
+- **Debt-to-Income / Debt Servicing Burden** ($200$ pts / $20\%$)
+- **Credit History Length & Seasoning** ($100$ pts / $10\%$)
+- **Spending Velocity & Cashflow Stability** ($100$ pts / $10\%$)
 
 ---
 
 ## 💻 Local Setup & Execution Commands
 
-### Prerequisites
-- Node.js v18+ (tested on v24)
-- Python 3.11+
-- Git
-
-### 1. Backend Setup & Model Training
+### 1. Backend Setup & Ingestion Tests
 ```bash
 cd backend
 
-# Activate virtual environment
 # Windows:
 .\.venv\Scripts\activate
 # Linux/macOS:
@@ -172,7 +135,7 @@ python -m pip install -r requirements.txt
 # Run reproducible ML model training pipeline
 python -m app.ml.training.trainer
 
-# Run complete backend & ML integration test suite
+# Run complete backend & ML & Ingestion integration test suite
 python test_api.py
 
 # Start FastAPI server on port 8000
@@ -180,8 +143,9 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 - **Interactive Swagger Docs**: [http://localhost:8000/api/v1/docs](http://localhost:8000/api/v1/docs)
-- **Health Endpoint**: [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health)
-- **Model Info**: [http://localhost:8000/api/v1/risk/model-info](http://localhost:8000/api/v1/risk/model-info)
+- **Statement Upload**: `POST http://localhost:8000/api/v1/statements/upload`
+- **Transactions Ledger**: `GET http://localhost:8000/api/v1/transactions`
+- **Spending Analytics**: `GET http://localhost:8000/api/v1/spending/overview`
 
 ### 2. Frontend Execution
 ```bash
@@ -200,7 +164,9 @@ npm run lint
 npm run dev
 ```
 
-Open [http://localhost:3000/dashboard](http://localhost:3000/dashboard) to explore the live intelligence command center.
+- **Statement Ingestion Console**: [http://localhost:3000/statements](http://localhost:3000/statements)
+- **Spending Intelligence**: [http://localhost:3000/spending](http://localhost:3000/spending)
+- **Dashboard Command Center**: [http://localhost:3000/dashboard](http://localhost:3000/dashboard)
 
 ---
 
@@ -208,14 +174,21 @@ Open [http://localhost:3000/dashboard](http://localhost:3000/dashboard) to explo
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/api/v1/health` | Service health status and feature flags |
-| `GET` | `/api/v1/risk/analysis?demo=true` | Real XGBoost default risk probabilities and TreeSHAP feature attributions |
-| `POST` | `/api/v1/risk/predict` | Predicts risk category and probabilities for custom applicant profile inputs |
-| `GET` | `/api/v1/risk/model-info` | Model specifications, baseline vs XGBoost evaluation metrics, and feature list |
-| `GET` | `/api/v1/credit-health/summary?demo=true` | Computes deterministic 0–1000 Credit Health Score and 5-factor breakdown |
-| `POST` | `/api/v1/credit-health/calculate` | Calculates dynamic 0–1000 score for custom income, limit, utilization, and DTI inputs |
-| `GET` | `/api/v1/spending/overview?demo=true` | Spending velocity, classified transaction ledger, and pattern anomaly alerts |
-| `POST` | `/api/v1/copilot/query` | Grounded financial intelligence inquiry with verified source citations |
+| `POST` | `/api/v1/statements/upload` | Ingests CSV/PDF statement, normalizes merchants, categorizes transactions |
+| `GET` | `/api/v1/statements` | Lists uploaded financial statements with file metadata and totals |
+| `GET` | `/api/v1/statements/{id}` | Retrieves specific statement processing status and summary |
+| `GET` | `/api/v1/transactions` | Paginated, filterable canonical transaction ledger (search, category, type) |
+| `POST` | `/api/v1/transactions/reprocess` | Re-executes entity normalization and category taxonomy across transactions |
+| `GET` | `/api/v1/spending/overview` | Deterministic cashflow metrics, category breakdowns, anomalies, and recurring items |
+| `GET` | `/api/v1/spending/categories` | Category-level expenditure totals and percentages |
+| `GET` | `/api/v1/spending/anomalies` | Statistically detected category surges and transaction outliers |
+| `GET` | `/api/v1/spending/recurring` | Detected recurring charges, streaming subscriptions, and loan EMIs |
+| `GET` | `/api/v1/risk/analysis` | Real XGBoost default risk probabilities and TreeSHAP feature attributions |
+| `POST` | `/api/v1/risk/predict` | Predicts default risk probabilities for custom applicant profiles |
+| `GET` | `/api/v1/risk/model-info` | Model metadata, evaluation metrics, and feature catalog |
+| `GET` | `/api/v1/credit-health/summary` | Computes deterministic 0–1000 Credit Health Score and 5-factor breakdown |
+| `POST` | `/api/v1/credit-health/calculate` | Calculates dynamic 0–1000 score for custom applicant inputs |
+| `POST` | `/api/v1/copilot/query` | Grounded financial intelligence inquiry with verified citations |
 | `POST` | `/api/v1/users/login` | Session authentication & demo account token issuance |
 
 ---

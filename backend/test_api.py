@@ -1,11 +1,26 @@
 """
-CreditLens Phase 3 Backend & ML Intelligence Verification Suite
-Tests all REST endpoints, deterministic scoring, XGBoost inference, and TreeSHAP explainability.
+CreditLens Comprehensive Backend & ML Intelligence Verification Suite
+Tests all REST endpoints, statement ingestion (CSV/PDF), normalization, categorization,
+anomaly detection, deterministic scoring, XGBoost inference, and TreeSHAP explainability.
 """
+import io
 from fastapi.testclient import TestClient
 from app.main import app
 
 client = TestClient(app)
+
+SAMPLE_CSV_STATEMENT = """Date,Description,Debit,Credit,Balance
+2026-03-28,SWIGGY*INSTAMART BANGALORE,1450.00,,74350.00
+2026-03-27,AMZN MKTPLACE INDIA PVT LTD,4200.00,,75800.00
+2026-03-26,UBER TRIP BLR/129384,380.00,,80000.00
+2026-03-25,NETFLIX.COM PAYMENT,649.00,,80380.00
+2026-03-24,AIRTEL BROADBAND BILL,1199.00,,81029.00
+2026-03-20,ZOMATO RESTAURANT DINING,2850.00,,82228.00
+2026-03-15,APOLLO PHARMACY BANGALORE,1250.00,,85078.00
+2026-03-10,TATA POWER ELECTRICITY,2800.00,,86328.00
+2026-03-05,CRED CLUB CC PAYMENT,8500.00,,89128.00
+2026-03-01,ACH SALARY CREDIT - TECH CORP,,65000.00,97628.00
+"""
 
 def test_root():
     response = client.get("/")
@@ -56,7 +71,6 @@ def test_credit_health_calculate():
     assert payload["success"] is True
     data = payload["data"]
     assert 0 <= data["health_score"] <= 1000
-    # With 15% utilization and 98% payment consistency, score should be in Excellent range
     assert data["health_score"] >= 800
     assert data["score_tier"] == "Excellent"
     print(f"[PASS] POST /api/v1/credit-health/calculate passed (Score: {data['health_score']})")
@@ -70,7 +84,6 @@ def test_risk_analysis():
     assert data["risk_category"] in ["LOW RISK", "MEDIUM RISK", "HIGH RISK"]
     assert 0.0 <= data["confidence_percentage"] <= 100.0
     
-    # Check probability distribution normalization
     prob = data["probability_distribution"]
     prob_sum = round(prob["low_risk"] + prob["medium_risk"] + prob["high_risk"], 2)
     assert prob_sum == 1.00
@@ -79,7 +92,6 @@ def test_risk_analysis():
     assert len(data["risk_factors"]) >= 2
     assert len(data["model_explainability"]) >= 4
 
-    # Verify SHAP items have required fields
     first_shap = data["model_explainability"][0]
     assert "feature_name" in first_shap
     assert "display_name" in first_shap
@@ -135,17 +147,97 @@ def test_model_info():
     assert data["feature_count"] > 20
     print(f"[PASS] GET /api/v1/risk/model-info passed (XGBoost ROC-AUC: {data['primary_xgb_metrics']['roc_auc']})")
 
-def test_spending_overview():
-    response = client.get("/api/v1/spending/overview?demo=true")
+def test_statement_upload_csv():
+    file_content = SAMPLE_CSV_STATEMENT.encode("utf-8")
+    files = {"file": ("hdfc_statement_mar2026.csv", io.BytesIO(file_content), "text/csv")}
+    response = client.post("/api/v1/statements/upload", files=files)
     assert response.status_code == 200
     payload = response.json()
     assert payload["success"] is True
     data = payload["data"]
-    assert data["total_spending_current_month"] == 49230.0
-    assert len(data["categories"]) == 7
+    assert data["parsed_transactions_count"] >= 9
+    assert data["total_credits"] == 65000.0
+    assert data["total_debits"] > 0
+    print(f"[PASS] POST /api/v1/statements/upload (CSV) passed ({data['parsed_transactions_count']} transactions)")
+
+def test_statement_upload_validation_error():
+    # Empty file
+    files = {"file": ("empty.csv", io.BytesIO(b""), "text/csv")}
+    response = client.post("/api/v1/statements/upload", files=files)
+    assert response.status_code == 400
+    print("[PASS] POST /api/v1/statements/upload (Empty Validation) passed")
+
+def test_list_statements():
+    response = client.get("/api/v1/statements")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert len(payload["data"]) >= 1
+    print(f"[PASS] GET /api/v1/statements passed ({len(payload['data'])} statements)")
+
+def test_list_transactions():
+    response = client.get("/api/v1/transactions?limit=10")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    data = payload["data"]
+    assert data["total_count"] >= 9
+    assert len(data["items"]) <= 10
+    first = data["items"][0]
+    assert "normalized_merchant" in first
+    assert "category" in first
+    assert "classification_method" in first
+    assert "amount" in first
+    print(f"[PASS] GET /api/v1/transactions passed ({data['total_count']} transactions stored)")
+
+def test_transactions_filter_category():
+    response = client.get("/api/v1/transactions?category=Food%20%26%20Dining")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    for item in payload["data"]["items"]:
+        assert item["category"] == "Food & Dining"
+    print("[PASS] GET /api/v1/transactions (Category Filter) passed")
+
+def test_spending_overview():
+    response = client.get("/api/v1/spending/overview?demo=false")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    data = payload["data"]
+    assert data["total_spending_current_month"] > 0
+    assert len(data["categories"]) >= 3
     assert len(data["anomalies"]) >= 1
     assert len(data["recent_transactions"]) >= 5
-    print("[PASS] GET /api/v1/spending/overview passed")
+    print(f"[PASS] GET /api/v1/spending/overview passed (Total: INR {data['total_spending_current_month']:,.2f})")
+
+def test_spending_categories():
+    response = client.get("/api/v1/spending/categories")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert len(payload["data"]) >= 3
+    print(f"[PASS] GET /api/v1/spending/categories passed ({len(payload['data'])} categories)")
+
+def test_spending_anomalies():
+    response = client.get("/api/v1/spending/anomalies")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert len(payload["data"]) >= 1
+    first_anom = payload["data"][0]
+    assert "title" in first_anom
+    assert "percentage_above_average" in first_anom
+    assert "historical_average" in first_anom
+    print(f"[PASS] GET /api/v1/spending/anomalies passed ({len(payload['data'])} anomalies detected)")
+
+def test_spending_recurring():
+    response = client.get("/api/v1/spending/recurring")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert len(payload["data"]) >= 1
+    print(f"[PASS] GET /api/v1/spending/recurring passed ({len(payload['data'])} recurring payments detected)")
 
 def test_copilot_query():
     response = client.post(
@@ -175,7 +267,7 @@ def test_user_login():
     print("[PASS] POST /api/v1/users/login passed")
 
 if __name__ == "__main__":
-    print("Starting CreditLens Comprehensive API & ML Verification Suite...\n")
+    print("Starting CreditLens Comprehensive API, ML & Ingestion Verification Suite...\n")
     test_root()
     test_health()
     test_credit_health_summary()
@@ -183,7 +275,17 @@ if __name__ == "__main__":
     test_risk_analysis()
     test_risk_predict()
     test_model_info()
+    test_statement_upload_csv()
+    test_statement_upload_validation_error()
+    test_list_statements()
+    test_list_transactions()
+    test_transactions_filter_category()
     test_spending_overview()
+    test_spending_categories()
+    test_spending_anomalies()
+    test_spending_recurring()
     test_copilot_query()
     test_user_login()
-    print("\nAll 10 API & ML Engine integration tests passed successfully!")
+    print("\n=======================================================")
+    print("All 18 API, ML & Ingestion integration tests passed successfully!")
+    print("=======================================================")

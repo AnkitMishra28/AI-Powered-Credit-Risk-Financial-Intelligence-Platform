@@ -88,20 +88,72 @@ export interface ApiTransactionItem {
   merchant: string;
   category: string;
   amount: number;
-  account_type: string;
+  account_type?: string;
   is_anomaly?: boolean;
   anomaly_reason?: string | null;
+  transaction_type?: "debit" | "credit";
+  original_description?: string;
+  confidence?: number;
+  classification_method?: string;
+  balance?: number | null;
+}
+
+export interface ApiRecurringPaymentItem {
+  id: string;
+  merchant: string;
+  category: string;
+  estimated_amount: number;
+  frequency: string;
+  last_payment_date: string;
+  next_expected_date?: string | null;
+  confidence: number;
+  status: string;
 }
 
 export interface ApiSpendingIntelligenceData {
   total_spending_current_month: number;
   spending_delta_pct: number;
   average_monthly_spend: number;
+  total_income_current_month?: number;
+  net_cashflow?: number;
+  discretionary_spending?: number;
+  essential_spending?: number;
   categories: ApiCategorySpend[];
   monthly_trend: ApiMonthlySpendTrend[];
   anomalies: ApiSpendingAnomaly[];
+  recurring_payments?: ApiRecurringPaymentItem[];
   recent_transactions: ApiTransactionItem[];
+  total_transactions_count?: number;
   is_demo?: boolean;
+}
+
+export interface ApiStatementSummary {
+  id: string;
+  user_id: number;
+  filename: string;
+  file_type: "csv" | "pdf";
+  file_size_bytes: number;
+  uploaded_at: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  transaction_count: number;
+  total_debits: number;
+  total_credits: number;
+  error_message?: string | null;
+}
+
+export interface ApiStatementUploadResponse {
+  statement: ApiStatementSummary;
+  parsed_transactions_count: number;
+  total_debits: number;
+  total_credits: number;
+}
+
+export interface ApiTransactionListResponse {
+  items: ApiTransactionItem[];
+  total_count: number;
+  offset: number;
+  limit: number;
+  has_more: boolean;
 }
 
 export interface ApiCitationSource {

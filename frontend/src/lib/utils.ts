@@ -19,6 +19,8 @@ export function formatINR(amount: number, includeDecimals: boolean = false): str
   return formatted;
 }
 
+export const formatCurrency = formatINR;
+
 /**
  * Formats a number to standard percentage string (e.g. 68.0%)
  */

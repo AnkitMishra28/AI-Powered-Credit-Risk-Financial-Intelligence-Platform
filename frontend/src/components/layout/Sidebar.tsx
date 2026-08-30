@@ -9,6 +9,7 @@ import {
   Activity,
   ShieldCheck,
   CreditCard,
+  FileText,
   Bot,
   Settings,
   TrendingUp,
@@ -36,6 +37,13 @@ const NAV_ITEMS = [
     href: "/risk-analysis",
     icon: ShieldCheck,
     badge: "Low Risk",
+    badgeColor: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30",
+  },
+  {
+    label: "Statements",
+    href: "/statements",
+    icon: FileText,
+    badge: "Ingestion",
     badgeColor: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30",
   },
   {

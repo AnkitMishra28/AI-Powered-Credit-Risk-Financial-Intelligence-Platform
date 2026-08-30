@@ -19,7 +19,8 @@ import {
   Percent,
   Wallet,
   ArrowRight,
-  Bot
+  Bot,
+  UploadCloud
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
@@ -43,6 +44,11 @@ export default function DashboardPage() {
         }
         actions={
           <div className="flex items-center gap-2.5">
+            <Link href="/statements">
+              <Button size="sm" variant="outline" className="text-xs font-bold border-white/[0.1] bg-[#0E1510] text-neutral-200 hover:text-white hover:border-emerald-500/30" leftIcon={<UploadCloud className="w-4 h-4 text-emerald-400" />}>
+                Upload Statement
+              </Button>
+            </Link>
             <Link href="/copilot">
               <Button size="sm" variant="emerald" className="text-xs font-bold shadow-md shadow-emerald-950/60" leftIcon={<Bot className="w-4 h-4" />}>
                 Ask CreditLens

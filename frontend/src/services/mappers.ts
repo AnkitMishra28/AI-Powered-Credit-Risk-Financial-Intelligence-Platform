@@ -1,39 +1,63 @@
+/**
+ * CreditLens API Response Mapper / Adapter Layer
+ * Transforms raw backend snake_case DTOs into strongly-typed frontend camelCase models.
+ */
+
 import {
   RiskAnalysisData,
-  CreditHealthData,
-  SpendingIntelligenceData,
-  HealthTier,
-  RiskLevel,
-  CopilotMessage,
-  CitationSource,
-  GroundingFact,
+  ProbabilityDistribution,
   ShapContribution,
+  RiskLevel,
+  CreditHealthData,
   HealthFactor,
+  HealthTier,
   CreditHealthHistoryPoint,
+  SpendingIntelligenceData,
   CategorySpend,
   MonthlySpendTrend,
   SpendingAnomaly,
-  Transaction
-} from "@/types";
+  Transaction,
+  RecurringPayment,
+  StatementSummary,
+  CopilotMessage,
+  CitationSource,
+  GroundingFact,
+} from "../types";
+
 import {
   ApiRiskAnalysisData,
   ApiCreditHealthData,
   ApiSpendingIntelligenceData,
   ApiCopilotResponsePayload,
   ApiCitationSource,
-  ApiGroundingFact
-} from "@/types/api";
+  ApiGroundingFact,
+  ApiStatementSummary,
+  ApiTransactionItem,
+  ApiRecurringPaymentItem,
+} from "../types/api";
 
-function isApiRiskData(raw: ApiRiskAnalysisData | RiskAnalysisData): raw is ApiRiskAnalysisData {
-  return "risk_category" in raw || "probability_distribution" in raw;
+function isApiRiskData(data: unknown): data is ApiRiskAnalysisData {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    ("probability_distribution" in data || "risk_category" in data)
+  );
 }
 
-function isApiCreditHealthData(raw: ApiCreditHealthData | CreditHealthData): raw is ApiCreditHealthData {
-  return "health_score" in raw;
+function isApiCreditData(data: unknown): data is ApiCreditHealthData {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    ("health_score" in data || "score_tier" in data)
+  );
 }
 
-function isApiSpendingData(raw: ApiSpendingIntelligenceData | SpendingIntelligenceData): raw is ApiSpendingIntelligenceData {
-  return "total_spending_current_month" in raw;
+function isApiSpendingData(data: unknown): data is ApiSpendingIntelligenceData {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    ("total_spending_current_month" in data || "monthly_trend" in data)
+  );
 }
 
 /**
@@ -47,31 +71,37 @@ export function mapRiskAnalysisResponse(
   }
 
   if (isApiRiskData(raw)) {
-    const prob = raw.probability_distribution;
-    const lowRisk = typeof prob?.low_risk === "number" ? prob.low_risk : 0.82;
-    const mediumRisk = typeof prob?.medium_risk === "number" ? prob.medium_risk : 0.14;
-    const highRisk = typeof prob?.high_risk === "number" ? prob.high_risk : 0.04;
+    const rawDist = raw.probability_distribution;
+    const probabilityDistribution: ProbabilityDistribution = rawDist
+      ? {
+          lowRisk: rawDist.low_risk ?? 0.82,
+          mediumRisk: rawDist.medium_risk ?? 0.14,
+          highRisk: rawDist.high_risk ?? 0.04,
+        }
+      : {
+          lowRisk: 0.82,
+          mediumRisk: 0.14,
+          highRisk: 0.04,
+        };
 
-    const shapContributions: ShapContribution[] = (raw.model_explainability || []).map((item) => ({
+    const modelExplainability: ShapContribution[] = (
+      raw.model_explainability || []
+    ).map((item) => ({
       featureName: item.feature_name,
       displayName: item.display_name,
       impactValue: item.impact_value,
       featureValue: item.feature_value,
-      isPositive: Boolean(item.is_positive),
+      isPositive: item.is_positive,
     }));
 
     return {
       riskCategory: (raw.risk_category || "LOW RISK") as RiskLevel,
       confidencePercentage: raw.confidence_percentage ?? 87.0,
-      probabilityDistribution: {
-        lowRisk,
-        mediumRisk,
-        highRisk,
-      },
+      probabilityDistribution,
       topPositiveFactors: raw.top_positive_factors || [],
       riskFactors: raw.risk_factors || [],
-      modelExplainability: shapContributions,
-      modelVersion: raw.model_version || "creditlens-risk-xgb-v1",
+      modelExplainability,
+      modelVersion: raw.model_version || "creditlens-risk-xgb-v1.2",
       evaluatedAt: raw.evaluated_at || new Date().toISOString(),
       disclaimer:
         raw.disclaimer ||
@@ -83,17 +113,13 @@ export function mapRiskAnalysisResponse(
   return {
     riskCategory: raw.riskCategory,
     confidencePercentage: raw.confidencePercentage,
-    probabilityDistribution: {
-      lowRisk: raw.probabilityDistribution?.lowRisk ?? 0.82,
-      mediumRisk: raw.probabilityDistribution?.mediumRisk ?? 0.14,
-      highRisk: raw.probabilityDistribution?.highRisk ?? 0.04,
-    },
+    probabilityDistribution: raw.probabilityDistribution,
     topPositiveFactors: raw.topPositiveFactors || [],
     riskFactors: raw.riskFactors || [],
     modelExplainability: raw.modelExplainability || [],
-    modelVersion: raw.modelVersion || "creditlens-risk-xgb-v1",
-    evaluatedAt: raw.evaluatedAt || new Date().toISOString(),
-    disclaimer: raw.disclaimer || "Machine learning risk evaluation is for educational and risk-awareness purposes only.",
+    modelVersion: raw.modelVersion,
+    evaluatedAt: raw.evaluatedAt,
+    disclaimer: raw.disclaimer,
   };
 }
 
@@ -107,13 +133,13 @@ export function mapCreditHealthResponse(
     throw new Error("Credit health payload is empty or invalid");
   }
 
-  if (isApiCreditHealthData(raw)) {
+  if (isApiCreditData(raw)) {
     const factors: HealthFactor[] = (raw.factors || []).map((f) => ({
       factorId: f.factor_id,
       name: f.name,
       score: f.score,
       weight: f.weight,
-      status: (f.status || "good") as "optimal" | "good" | "warning" | "critical",
+      status: (f.status || "optimal") as "optimal" | "good" | "warning" | "critical",
       description: f.description,
       impactDetail: f.impact_detail,
     }));
@@ -146,6 +172,46 @@ export function mapCreditHealthResponse(
     factors: raw.factors || [],
     history: raw.history || [],
     disclaimer: raw.disclaimer,
+  };
+}
+
+/**
+ * Maps raw transaction item to frontend model
+ */
+export function mapTransactionItem(tx: ApiTransactionItem): Transaction {
+  return {
+    id: tx.id,
+    date: tx.date,
+    merchant: tx.merchant,
+    category: tx.category,
+    amount: tx.amount,
+    accountType: tx.account_type || "Credit Card",
+    isAnomaly: Boolean(tx.is_anomaly),
+    anomalyReason: tx.anomaly_reason || undefined,
+    transactionType: tx.transaction_type || "debit",
+    originalDescription: tx.original_description,
+    confidence: tx.confidence ?? 0.95,
+    classificationMethod: tx.classification_method || "merchant_rule",
+    balance: tx.balance ?? undefined,
+  };
+}
+
+/**
+ * Maps raw statement summary
+ */
+export function mapStatementSummary(s: ApiStatementSummary): StatementSummary {
+  return {
+    id: s.id,
+    userId: s.user_id,
+    filename: s.filename,
+    fileType: s.file_type,
+    fileSizeBytes: s.file_size_bytes,
+    uploadedAt: s.uploaded_at,
+    status: s.status,
+    transactionCount: s.transaction_count,
+    totalDebits: s.total_debits,
+    totalCredits: s.total_credits,
+    errorMessage: s.error_message || undefined,
   };
 }
 
@@ -185,24 +251,32 @@ export function mapSpendingResponse(
       severity: (a.severity || "warning") as "info" | "warning" | "critical",
     }));
 
-    const recentTransactions: Transaction[] = (raw.recent_transactions || []).map((tx) => ({
-      id: tx.id,
-      date: tx.date,
-      merchant: tx.merchant,
-      category: tx.category,
-      amount: tx.amount,
-      accountType: tx.account_type,
-      isAnomaly: Boolean(tx.is_anomaly),
-      anomalyReason: tx.anomaly_reason || undefined,
+    const recentTransactions: Transaction[] = (raw.recent_transactions || []).map(mapTransactionItem);
+
+    const recurringPayments: RecurringPayment[] = (raw.recurring_payments || []).map((r: ApiRecurringPaymentItem) => ({
+      id: r.id,
+      merchant: r.merchant,
+      category: r.category,
+      estimatedAmount: r.estimated_amount,
+      frequency: r.frequency,
+      lastPaymentDate: r.last_payment_date,
+      nextExpectedDate: r.next_expected_date || undefined,
+      confidence: r.confidence,
+      status: r.status,
     }));
 
     return {
       totalSpendingCurrentMonth: raw.total_spending_current_month,
       spendingDeltaPct: raw.spending_delta_pct,
       averageMonthlySpend: raw.average_monthly_spend,
+      totalIncomeCurrentMonth: raw.total_income_current_month,
+      netCashflow: raw.net_cashflow,
+      discretionarySpending: raw.discretionary_spending,
+      essentialSpending: raw.essential_spending,
       categories,
       monthlyTrend,
       anomalies,
+      recurringPayments,
       recentTransactions,
     };
   }
@@ -212,9 +286,14 @@ export function mapSpendingResponse(
     totalSpendingCurrentMonth: raw.totalSpendingCurrentMonth,
     spendingDeltaPct: raw.spendingDeltaPct,
     averageMonthlySpend: raw.averageMonthlySpend,
+    totalIncomeCurrentMonth: raw.totalIncomeCurrentMonth,
+    netCashflow: raw.netCashflow,
+    discretionarySpending: raw.discretionarySpending,
+    essentialSpending: raw.essentialSpending,
     categories: raw.categories || [],
     monthlyTrend: raw.monthlyTrend || [],
     anomalies: raw.anomalies || [],
+    recurringPayments: raw.recurringPayments || [],
     recentTransactions: raw.recentTransactions || [],
   };
 }
@@ -248,14 +327,14 @@ export function mapCopilotResponse(
   const suggestedFollowups: string[] = raw.suggested_followups || [];
 
   const message: CopilotMessage = {
-    id: `msg-${raw.conversation_id || Date.now()}`,
+    id: `copilot-${Date.now()}`,
     sender: "assistant",
     text: raw.response,
-    timestamp: "Just now",
+    timestamp: raw.timestamp || new Date().toISOString(),
     sources,
     groundingFacts,
     suggestedFollowups,
-    isDemoResponse: Boolean(raw.is_demo),
+    isDemoResponse: raw.is_demo ?? true,
   };
 
   return {
