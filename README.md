@@ -50,14 +50,14 @@ LLM SYNTHESIS & INSIGHTS         ──►  Natural Language Grounded Explanatio
             ┌──────────────────────┴───────────────┴──────────────────────┐
             ▼                                                             ▼
 ┌───────────────────────────────┐                             ┌───────────────────────────────┐
-│  Statement Ingestion & Rules  │                             │     ML Risk & Explainability  │
-│      (CSV & PDF Parsers)      │                             │   (Scikit-learn / XGBoost)    │
+│     RAG Copilot & Knowledge   │                             │     ML Risk & Explainability  │
+│   (pgvector + Gemini 1.5)     │                             │   (Scikit-learn / XGBoost)    │
 ├───────────────────────────────┤                             ├───────────────────────────────┤
-│ • Canonical Column Resolution │                             │ • Feature Engineering Engine  │
-│ • Merchant Entity Normalizer  │                             │ • ColumnTransformer Pipeline  │
-│ • 16-Category Taxonomy Engine │                             │ • XGBoost Classifier          │
-│ • Statistical Anomaly (z-score│                             │ • TreeSHAP Explainability     │
-│ • Recurring Payment Detector  │                             │ • 0–1000 Credit Health Score  │
+│ • RBI Master Directions       │                             │ • Feature Engineering Engine  │
+│ • Semantic Vector Search      │                             │ • ColumnTransformer Pipeline  │
+│ • User Metric Grounding       │                             │ • XGBoost Classifier          │
+│ • Prompt Injection Defense    │                             │ • TreeSHAP Explainability     │
+│ • Structured JSON Output      │                             │ • 0–1000 Credit Health Score  │
 └───────────────┬───────────────┘                             └───────────────┬───────────────┘
                 │                                                             │
                 └──────────────────────────────┬──────────────────────────────┘
@@ -65,24 +65,59 @@ LLM SYNTHESIS & INSIGHTS         ──►  Natural Language Grounded Explanatio
                                ┌───────────────────────────────┐
                                │     PostgreSQL + pgvector     │
                                │  Users, Statements, Metrics,  │
-                               │  Transactions, Predictions    │
+                               │  Transactions, Chunks, Embeds │
                                └───────────────────────────────┘
 ```
 
 ---
 
+## 🧠 Phase 5: RAG-Powered Financial Copilot & Knowledge Retrieval
+
+### 1. Authoritative Knowledge Base
+- **Legitimate Regulatory & Educational Sources**:
+  - `doc-rbi-cards-2022`: *RBI Master Direction – Credit Card and Debit Card – Issuance and Conduct Directions, 2022* (Minimum Amount Due disclosure mandates, compounding finance charges, billing cycles, unsolicited card bans).
+  - `doc-rbi-apr-finance`: *RBI Guidance on APR Compounding & Minimum Payment Traps* (Daily periodic rate computation, loss of the 20–50 day interest-free grace period upon revolving balances).
+  - `doc-credit-utilization-guide`: *Credit Utilization Ratio & Revolving Debt Management Framework* (Optimal $<30\%$ threshold, mid-cycle payments before statement generation dates).
+  - `doc-credit-health-mechanics`: *Credit Scoring Mechanics & Delinquency Impact Standards* (5 weighted pillars, seasoning, hard inquiries vs soft checks).
+  - `doc-rbi-ombudsman-grievance`: *Reserve Bank - Integrated Ombudsman Scheme, 2021* (30-day escalation windows, unauthorized digital transaction zero/limited liability).
+  - `doc-debt-cashflow-optimization`: *Personal Cashflow Velocity & Debt Repayment Strategies* (Debt Avalanche vs Snowball, 50/30/20 budget allocations).
+
+### 2. Retrieval & Grounding Pipeline
+```
+User Question
+    ↓
+Text Sanitization & Tokenization
+    ↓
+384-Dim Semantic Vector Embedding
+    ↓
+Vector Similarity Search (Exact Cosine / pgvector)
+    ↓
+Top-K Chunks + Similarity Threshold (>0.40)
+    ↓
+Structured User Metrics Injection (Score, Tier, Utilization, DTI, Anomalies, Cashflow)
+    ↓
+Grounded System Prompt with Anti-Hallucination & Anti-Injection Guardrails
+    ↓
+Gemini 1.5 Pro / Flash Structured Synthesis
+    ↓
+Response Validation + Traceable Source Citations + Key Takeaways
+```
+
+### 3. Safety, Responsible AI & Prompt Injection Guardrails
+- **Prompt Injection Defense**: Input questions attempting system prompt override or key exfiltration (e.g. `"Ignore previous instructions"`) are intercepted and rejected, preserving security boundaries.
+- **Out-of-Scope Detection**: Queries outside verified financial domains return explicit capability boundaries without hallucinating facts.
+- **Strict Metric Preservation**: The LLM is never permitted to recalculate or fabricate financial numbers; deterministic backend calculations remain authoritative.
+
+---
+
 ## 📂 Phase 4: Financial Statement & Transaction Intelligence Subsystem
 
-### 1. Ingestion Pipeline & Parsers
 - **Multi-Format Ingestion**: Supports `.csv` and text-based `.pdf` statements up to 10 MB.
-- **CSV Statement Parser** ([`csv_parser.py`](backend/app/ingestion/csv_parser.py)): Resolves varying bank headers (Date, Description, Debit, Credit, Amount, Balance), cleans ISO/UK/Indian date formats, handles currency symbols and negative signs, and deduplicates identical records.
-- **PDF Statement Parser** ([`pdf_parser.py`](backend/app/ingestion/pdf_parser.py)): Deterministically parses tabular text stream layouts via `pypdf` without relying on external OCR services or non-deterministic LLMs.
-- **Merchant Entity Normalizer** ([`normalizer.py`](backend/app/ingestion/normalizer.py)): Strips gateway prefixes (`UPI-`, `POS `, `IMPS-`, `NEFT-`, `BILLDESK`) and corporate suffixes (`*ONLINE`, `PVT LTD`, `.COM`), mapping raw narrations (e.g. `SWIGGY*INSTAMART BLR`) to clean merchant identities (`SWIGGY`) while preserving `original_description` for auditability.
-- **16-Category Taxonomy Engine** ([`categorization.py`](backend/app/ingestion/categorization.py)): Classifies transactions into standard financial categories (`Food & Dining`, `Shopping`, `Transport`, `Entertainment`, `Healthcare`, `Utilities`, `Rent & Housing`, `Education`, `Travel`, `Insurance`, `Groceries`, `Salary / Income`, `Transfer`, `EMI / Loan`, `Cash Withdrawal`, `Other`) with confidence scoring and classification method provenance (`merchant_rule`, `keyword_pattern`, `fallback_default`).
-
-### 2. Statistical Anomaly & Recurring Detection
-- **Statistical Anomaly Detector** ([`anomaly_detector.py`](backend/app/ingestion/anomaly_detector.py)): Evaluates category spending surges ($> 25\%$ vs 3-month baseline) and single large transaction outliers ($> \mu + 1.8\sigma$) with explicit mathematical baseline transparency.
-- **Recurring Payment Detection** ([`recurring_detector.py`](backend/app/ingestion/recurring_detector.py)): Detects streaming subscriptions, regular utility bills, and loan EMIs with estimated amount, interval frequency, and confidence matching.
+- **CSV & PDF Parsers** ([`csv_parser.py`](backend/app/ingestion/csv_parser.py), [`pdf_parser.py`](backend/app/ingestion/pdf_parser.py)): Header mapping, date normalization, currency cleaning, and SHA-256 deduplication.
+- **Merchant Entity Normalizer** ([`normalizer.py`](backend/app/ingestion/normalizer.py)): Strips gateway prefixes (`UPI-`, `POS `, `IMPS-`, `BILLDESK`) and noise suffixes, mapping to clean merchant identities while preserving `original_description`.
+- **16-Category Taxonomy Engine** ([`categorization.py`](backend/app/ingestion/categorization.py)): Classifies transactions with confidence scoring and classification method provenance.
+- **Statistical Anomaly Detector** ([`anomaly_detector.py`](backend/app/ingestion/anomaly_detector.py)): Category velocity surges ($> 25\%$) and transaction outliers ($> \mu + 1.8\sigma$).
+- **Recurring Payment Detector** ([`recurring_detector.py`](backend/app/ingestion/recurring_detector.py)): Subscriptions and periodic EMIs.
 
 ---
 
@@ -105,17 +140,6 @@ LLM SYNTHESIS & INSIGHTS         ──►  Natural Language Grounded Explanatio
 | **PR-AUC** | 64.39% | **65.96%** |
 | **Brier Score (Calibration)** | 0.1814 | **0.1715** |
 
-### 3. TreeSHAP Feature Explainability
-- Native tree ensemble Shapley value computation via TreeSHAP.
-- Generates positive safety drivers and watch signals with exact impact deltas.
-
-### 4. Deterministic Credit Health Score (0–1000)
-- **Payment Consistency & Reliability** ($350$ pts / $35\%$)
-- **Revolving Credit Utilization** ($250$ pts / $25\%$)
-- **Debt-to-Income / Debt Servicing Burden** ($200$ pts / $20\%$)
-- **Credit History Length & Seasoning** ($100$ pts / $10\%$)
-- **Spending Velocity & Cashflow Stability** ($100$ pts / $10\%$)
-
 ---
 
 ## 💻 Local Setup & Execution Commands
@@ -132,10 +156,7 @@ source .venv/bin/activate
 # Install dependencies
 python -m pip install -r requirements.txt
 
-# Run reproducible ML model training pipeline
-python -m app.ml.training.trainer
-
-# Run complete backend & ML & Ingestion integration test suite
+# Run complete backend, ML, Ingestion & RAG integration test suite
 python test_api.py
 
 # Start FastAPI server on port 8000
@@ -143,6 +164,7 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 - **Interactive Swagger Docs**: [http://localhost:8000/api/v1/docs](http://localhost:8000/api/v1/docs)
+- **Copilot RAG Query**: `POST http://localhost:8000/api/v1/copilot/query`
 - **Statement Upload**: `POST http://localhost:8000/api/v1/statements/upload`
 - **Transactions Ledger**: `GET http://localhost:8000/api/v1/transactions`
 - **Spending Analytics**: `GET http://localhost:8000/api/v1/spending/overview`
@@ -164,9 +186,10 @@ npm run lint
 npm run dev
 ```
 
-- **Statement Ingestion Console**: [http://localhost:3000/statements](http://localhost:3000/statements)
+- **Copilot Workspace**: [http://localhost:3000/copilot](http://localhost:3000/copilot)
+- **Statement Ingestion**: [http://localhost:3000/statements](http://localhost:3000/statements)
 - **Spending Intelligence**: [http://localhost:3000/spending](http://localhost:3000/spending)
-- **Dashboard Command Center**: [http://localhost:3000/dashboard](http://localhost:3000/dashboard)
+- **Main Command Center**: [http://localhost:3000/dashboard](http://localhost:3000/dashboard)
 
 ---
 
@@ -174,6 +197,7 @@ npm run dev
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
+| `POST` | `/api/v1/copilot/query` | RAG financial intelligence inquiry with verified citations & metric grounding |
 | `POST` | `/api/v1/statements/upload` | Ingests CSV/PDF statement, normalizes merchants, categorizes transactions |
 | `GET` | `/api/v1/statements` | Lists uploaded financial statements with file metadata and totals |
 | `GET` | `/api/v1/statements/{id}` | Retrieves specific statement processing status and summary |
@@ -188,7 +212,6 @@ npm run dev
 | `GET` | `/api/v1/risk/model-info` | Model metadata, evaluation metrics, and feature catalog |
 | `GET` | `/api/v1/credit-health/summary` | Computes deterministic 0–1000 Credit Health Score and 5-factor breakdown |
 | `POST` | `/api/v1/credit-health/calculate` | Calculates dynamic 0–1000 score for custom applicant inputs |
-| `POST` | `/api/v1/copilot/query` | Grounded financial intelligence inquiry with verified citations |
 | `POST` | `/api/v1/users/login` | Session authentication & demo account token issuance |
 
 ---

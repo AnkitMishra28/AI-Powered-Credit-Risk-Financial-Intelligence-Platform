@@ -1,15 +1,26 @@
+"""
+CreditLens Copilot Schemas
+Pydantic contracts for RAG inquiry requests and grounded responses.
+"""
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 class CitationSource(BaseModel):
-    id: str
+    id: str = Field(..., alias="document_id")
+    document_id: Optional[str] = None
+    chunk_id: Optional[str] = None
     title: str
-    publisher: str # e.g. "Reserve Bank of India (RBI)", "Consumer Credit Standards"
-    doc_type: str # "Regulatory Guideline", "Credit Terms", "Financial Literacy Guide"
+    publisher: str = Field(..., alias="source_name") # e.g. "Reserve Bank of India (RBI)"
+    source_name: Optional[str] = None
+    doc_type: str = "Regulatory Guideline"
     excerpt: str
-    url: Optional[str] = None
+    url: Optional[str] = Field(None, alias="source_url")
+    source_url: Optional[str] = None
     relevance_score: float = 0.95
+
+    class Config:
+        populate_by_name = True
 
 class GroundingFact(BaseModel):
     label: str
@@ -18,14 +29,21 @@ class GroundingFact(BaseModel):
 class CopilotQueryRequest(BaseModel):
     query: str = Field(..., min_length=2, max_length=1000)
     conversation_id: Optional[str] = None
+    include_personal_context: bool = True
     include_sources: bool = True
 
 class CopilotQueryResponse(BaseModel):
     response: str
     conversation_id: str
     timestamp: datetime
-    sources: List[CitationSource]
-    grounding_facts: List[GroundingFact]
+    sources: List[Dict[str, Any]]
+    grounding_facts: List[Dict[str, str]]
     suggested_followups: List[str]
-    disclaimer: str = "CreditLens Copilot provides educational information grounded in your metrics and citations. It is not financial advice."
+    key_points: List[str] = Field(default_factory=list)
+    personalized_insights: List[str] = Field(default_factory=list)
+    grounding_summary: Dict[str, Any] = Field(default_factory=dict)
+    disclaimer: str = (
+        "Educational information only. CreditLens is not a credit bureau or financial advisor, "
+        "and does not make credit decisions."
+    )
     is_demo: bool = True

@@ -178,6 +178,15 @@ export interface ApiCopilotResponsePayload {
   sources: ApiCitationSource[];
   grounding_facts: ApiGroundingFact[];
   suggested_followups: string[];
+  key_points?: string[];
+  personalized_insights?: string[];
+  grounding_summary?: {
+    retrieved_chunks_count?: number;
+    retrieval_used?: boolean;
+    personal_context_used?: boolean;
+    retrieval_latency_ms?: number;
+    total_latency_ms?: number;
+  };
   disclaimer?: string;
   is_demo?: boolean;
 }

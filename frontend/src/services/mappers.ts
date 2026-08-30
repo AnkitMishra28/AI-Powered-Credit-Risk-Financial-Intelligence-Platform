@@ -334,6 +334,18 @@ export function mapCopilotResponse(
     sources,
     groundingFacts,
     suggestedFollowups,
+    keyPoints: raw.key_points || [],
+    personalizedInsights: raw.personalized_insights || [],
+    groundingSummary: raw.grounding_summary
+      ? {
+          retrievedChunksCount: raw.grounding_summary.retrieved_chunks_count,
+          retrievalUsed: raw.grounding_summary.retrieval_used,
+          personalContextUsed: raw.grounding_summary.personal_context_used,
+          retrievalLatencyMs: raw.grounding_summary.retrieval_latency_ms,
+          totalLatencyMs: raw.grounding_summary.total_latency_ms,
+        }
+      : undefined,
+    disclaimer: raw.disclaimer,
     isDemoResponse: raw.is_demo ?? true,
   };
 

@@ -1,36 +1,53 @@
 """
-CreditLens RAG Retriever & Gemini LLM Client Scaffolding (Phase 1 Foundation)
+CreditLens Semantic Retriever
+Normalizes queries, generates query embeddings, queries the vector store, and deduplicates source references.
 """
-from typing import List, Dict, Any, Optional
-from app.core.config import settings
+from typing import List, Optional
+from app.rag.models import RetrievalResult
+from app.rag.text_cleaner import clean_text
+from app.rag.embeddings import embedding_engine
+from app.rag.vector_store import vector_store
+from app.rag.config import rag_settings
 
-class RAGRetriever:
-    async def retrieve_citations(self, query: str, top_k: int = 3) -> List[Dict[str, Any]]:
-        """
-        Orchestrates query embedding + pgvector search + metadata filtering.
-        """
-        return []
+class SemanticRetriever:
+    def __init__(self):
+        pass
 
-class GeminiLLMClient:
-    """
-    Interface for Google Gemini API for natural-language generation grounded in structured metrics.
-    """
-    def __init__(self, api_key: Optional[str] = None, model: str = "gemini-1.5-pro"):
-        self.api_key = api_key or settings.GEMINI_API_KEY
-        self.model = model
-
-    async def generate_grounded_response(
+    def retrieve(
         self,
-        user_query: str,
-        structured_metrics: Dict[str, Any],
-        retrieved_contexts: List[Dict[str, Any]]
-    ) -> str:
+        query: str,
+        top_k: int = rag_settings.TOP_K,
+        threshold: float = rag_settings.SIMILARITY_THRESHOLD,
+        category: Optional[str] = None
+    ) -> List[RetrievalResult]:
         """
-        Prompting contract strictly forbidding the LLM from fabricating math or metrics.
-        LLM only verbalizes the provided structured_metrics + retrieved_contexts.
+        Performs semantic retrieval across the knowledge base.
         """
-        # In Phase 2, invokes google-generativeai / LangChain integration
-        return "Phase 1 Scaffolding: Ready for Gemini API key integration in Phase 2."
+        cleaned_query = clean_text(query)
+        if not cleaned_query or len(cleaned_query) < 2:
+            return []
 
-rag_retriever = RAGRetriever()
-gemini_client = GeminiLLMClient()
+        query_emb = embedding_engine.embed_text(cleaned_query)
+        raw_results = vector_store.search(
+            query_embedding=query_emb,
+            top_k=top_k * 2, # Fetch wider candidate pool for deduplication
+            threshold=threshold,
+            category=category
+        )
+
+        # Deduplicate to at most 2 chunks per document for diverse context
+        doc_counts = {}
+        filtered_results: List[RetrievalResult] = []
+
+        for res in raw_results:
+            cnt = doc_counts.get(res.document_id, 0)
+            if cnt < 2:
+                filtered_results.append(res)
+                doc_counts[res.document_id] = cnt + 1
+
+            if len(filtered_results) >= top_k:
+                break
+
+        return filtered_results
+
+retriever = SemanticRetriever()

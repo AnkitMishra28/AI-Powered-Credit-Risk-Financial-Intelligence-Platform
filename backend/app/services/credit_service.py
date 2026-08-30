@@ -119,3 +119,4 @@ class CreditHealthService:
         )
 
 credit_health_service = CreditHealthService()
+credit_service = credit_health_service

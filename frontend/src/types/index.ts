@@ -157,6 +157,8 @@ export interface SpendingIntelligenceData {
 
 export interface CitationSource {
   id: string;
+  documentId?: string;
+  chunkId?: string;
   title: string;
   publisher: string;
   docType: string;
@@ -170,6 +172,14 @@ export interface GroundingFact {
   value: string;
 }
 
+export interface GroundingSummary {
+  retrievedChunksCount?: number;
+  retrievalUsed?: boolean;
+  personalContextUsed?: boolean;
+  retrievalLatencyMs?: number;
+  totalLatencyMs?: number;
+}
+
 export interface CopilotMessage {
   id: string;
   sender: "user" | "assistant" | "system";
@@ -178,6 +188,10 @@ export interface CopilotMessage {
   sources?: CitationSource[];
   groundingFacts?: GroundingFact[];
   suggestedFollowups?: string[];
+  keyPoints?: string[];
+  personalizedInsights?: string[];
+  groundingSummary?: GroundingSummary;
+  disclaimer?: string;
   isDemoResponse?: boolean;
 }
 

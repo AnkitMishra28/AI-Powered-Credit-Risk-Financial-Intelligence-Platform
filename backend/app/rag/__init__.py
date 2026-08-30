@@ -1,10 +1,24 @@
-from app.rag.embeddings import embedding_generator
-from app.rag.vector_store import vector_store
-from app.rag.retriever import rag_retriever, gemini_client
+"""
+CreditLens RAG (Retrieval-Augmented Generation) & Financial Intelligence Engine
+Provides authoritative financial knowledge retrieval, structured user-metric grounding,
+anti-hallucination guardrails, and Gemini natural language synthesis.
+"""
+from app.rag.models import (
+    Document,
+    DocumentChunk,
+    RetrievalResult,
+    GroundedContext,
+    StructuredGeminiResponse,
+    CopilotResponse
+)
+from app.rag.service import rag_copilot_service
 
 __all__ = [
-    "embedding_generator",
-    "vector_store",
-    "rag_retriever",
-    "gemini_client",
+    "Document",
+    "DocumentChunk",
+    "RetrievalResult",
+    "GroundedContext",
+    "StructuredGeminiResponse",
+    "CopilotResponse",
+    "rag_copilot_service"
 ]
