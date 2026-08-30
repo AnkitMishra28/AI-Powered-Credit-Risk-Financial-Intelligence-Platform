@@ -296,27 +296,28 @@ Continuous integration is enforced via [`.github/workflows/ci.yml`](.github/work
 
 ## Engineering Highlights
 
-- **Full-Stack Type Safety**: End-to-end consistency from Python Pydantic DTOs through central service mappers to TypeScript interfaces.
-- **Strict Calculation Boundaries**: Financial metrics and 0–1000 scores are computed deterministically in Python; the LLM is restricted to grounded synthesis.
-- **Explainable Machine Learning**: Native TreeSHAP integration explains why specific default risk tiers are assigned to applicants.
-- **Automated Statement Hygiene**: Multi-format ingestion with merchant entity normalization and SHA-256 fingerprint deduplication.
-- **Grounded Regulatory RAG**: Queries authoritative RBI directives and user profile metrics to deliver verifiable answers with citations.
-- **Multi-Tenant Isolation**: Row-level tenant boundaries derived from verified JWT claims.
-- **Containerized Orchestration**: Reproducible local and deployment environment via Docker Compose with PostgreSQL.
+- **End-to-end type safety**: Request and response models are defined with Pydantic on the backend and mapped to TypeScript types on the frontend, so the API contract stays consistent on both sides.
+- **Financial calculations in Python**: The Credit Health Score, spending metrics, and default probability are computed in the backend. The LLM is used to explain those results, not to produce the numbers.
+- **Explainable risk predictions**: The XGBoost classifier is paired with `shap.TreeExplainer`, so the UI can show which applicant features pushed a prediction up or down.
+- **Statement processing pipeline**: Uploaded CSV/PDF statements are parsed, normalized into transactions, cleaned up for merchant names, categorized, and de-duplicated with SHA-256 fingerprints before anything is stored.
+- **RAG-based Copilot**: The Copilot retrieves relevant passages from the indexed RBI directives, adds the user's calculated financial metrics as context, and then generates an answer with source citations.
+- **User-scoped data access**: Authenticated requests use the user ID from the verified JWT when reading financial profiles, statements, transactions, predictions, and Copilot history.
+- **Docker-based local setup**: Docker Compose runs PostgreSQL and the application services so the local environment matches what the project expects.
 
 ---
 
 ## Limitations
 
-- **Benchmark Dataset**: The ML risk model is trained on the South German Credit benchmark dataset for educational and portfolio demonstration. Commercial banking deployment requires training on compliant, large-scale bureau data with disparate impact audits.
-- **External AI Dependencies**: Copilot natural-language synthesis optionally connects to the Google Gemini API. When no API key is configured, the system uses deterministic grounded responses.
-- **Statement Formats**: Statement ingestion supports standard CSV and text-based PDF formats up to 10 MB. Scanned image PDFs require an OCR preprocessing pipeline.
+This project is a portfolio and engineering demonstration, not a production credit-underwriting system.
+
+- **ML dataset**: The risk model is trained on the South German Credit benchmark dataset. A real lending system would need much larger, domain-specific, and properly governed credit data, along with model validation and fairness testing.
+- **Gemini dependency**: The Copilot uses the Gemini API to phrase its natural-language answers. If no Gemini API key is configured, it falls back to a local response path that assembles answers from the retrieved passages and the user's metrics without the LLM step.
+- **Statement formats**: The ingestion pipeline handles CSV and text-based PDF statements up to 10 MB. Scanned or image-only PDFs would need OCR before they could be processed.
 
 ---
 
 ## Responsible AI Disclaimer
 
-CreditLens is developed as an educational and portfolio engineering project.
-- CreditLens is **NOT a credit reporting agency or credit bureau** (such as CIBIL, Equifax, or Experian).
-- The **CreditLens Credit Health Score** is an educational mathematical index and does not represent official credit underwriting.
-- Outputs from CreditLens machine learning models and Copilot insights do not constitute financial, investment, or legal advice.
+CreditLens is a portfolio project that demonstrates credit-risk analytics, explainable machine learning, financial data processing, and RAG-based AI.
+
+The Credit Health Score is a project-specific educational score. It is not an official credit score from a bureau such as CIBIL, Equifax, or Experian. The ML predictions and Copilot responses are meant for demonstration and learning, and should not be treated as financial, investment, legal, or credit-underwriting advice.
