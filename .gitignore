@@ -30,6 +30,8 @@ dist/
 .env.test.local
 .env.production.local
 *.env
+!.env.example
+!**/.env.example
 
 # IDE and Editor files
 .vscode/
