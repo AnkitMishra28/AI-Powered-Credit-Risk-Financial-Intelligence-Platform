@@ -1,7 +1,7 @@
 /**
  * CreditLens Financial Statement Ingestion Service
- * Handles statement uploads (CSV/PDF), statement listings, and transaction ledger queries
- * with automatic JWT authorization attachment.
+ * Handles statement uploads (CSV/PDF), statement listings, statement detail,
+ * transaction ledger queries, and transaction reprocessing with automatic JWT authorization.
  */
 import { StatementSummary, Transaction } from "../types";
 import {
@@ -41,6 +41,14 @@ export async function getStatements(): Promise<StatementSummary[]> {
   return (rawList || []).map(mapStatementSummary);
 }
 
+export async function getStatementDetail(statementId: string): Promise<StatementSummary> {
+  const raw = await fetchApi<ApiStatementSummary>(
+    `/statements/${statementId}`,
+    { method: "GET" }
+  );
+  return mapStatementSummary(raw);
+}
+
 export async function getTransactions(params?: {
   category?: string;
   txnType?: string;
@@ -67,4 +75,12 @@ export async function getTransactions(params?: {
     items: (data.items || []).map(mapTransactionItem),
     totalCount: data.total_count,
   };
+}
+
+export async function reprocessTransactions(): Promise<{ reprocessedCount: number }> {
+  const res = await fetchApi<{ reprocessed_count: number }>(
+    "/transactions/reprocess",
+    { method: "POST" }
+  );
+  return { reprocessedCount: res.reprocessed_count ?? 0 };
 }

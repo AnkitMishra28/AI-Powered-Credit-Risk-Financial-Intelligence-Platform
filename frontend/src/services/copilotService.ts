@@ -3,6 +3,17 @@ import { CopilotMessage, CitationSource, GroundingFact } from "@/types";
 import { ApiCopilotResponsePayload } from "@/types/api";
 import { mapCopilotResponse } from "./mappers";
 
+export interface CopilotHistoryItem {
+  id: number;
+  conversation_id: string;
+  query: string;
+  answer: string;
+  sources?: Record<string, unknown>[];
+  key_points?: string[];
+  personalized_insights?: string[];
+  created_at: string;
+}
+
 export const copilotService = {
   async askQuestion(
     query: string,
@@ -110,6 +121,19 @@ export const copilotService = {
         groundingFacts: fallbackGrounding,
         suggestedFollowups: fallbackFollowups
       };
+    }
+  },
+
+  async getHistory(limit: number = 20): Promise<CopilotHistoryItem[]> {
+    try {
+      const data = await fetchApi<CopilotHistoryItem[]>(
+        `/copilot/history?limit=${limit}`,
+        { method: "GET" },
+        []
+      );
+      return data || [];
+    } catch {
+      return [];
     }
   }
 };

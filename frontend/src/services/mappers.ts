@@ -28,6 +28,8 @@ import {
   ApiRiskAnalysisData,
   ApiCreditHealthData,
   ApiSpendingIntelligenceData,
+  ApiCategorySpend,
+  ApiSpendingAnomaly,
   ApiCopilotResponsePayload,
   ApiCitationSource,
   ApiGroundingFact,
@@ -215,6 +217,43 @@ export function mapStatementSummary(s: ApiStatementSummary): StatementSummary {
   };
 }
 
+export function mapCategorySpend(c: ApiCategorySpend): CategorySpend {
+  return {
+    category: c.category,
+    amount: c.amount,
+    percentage: c.percentage,
+    color: c.color,
+    monthOverMonthChangePct: c.month_over_month_change_pct,
+  };
+}
+
+export function mapSpendingAnomaly(a: ApiSpendingAnomaly): SpendingAnomaly {
+  return {
+    id: a.id,
+    category: a.category,
+    title: a.title,
+    description: a.description,
+    percentageAboveAverage: a.percentage_above_average,
+    historicalAverage: a.historical_average,
+    currentAmount: a.current_amount,
+    severity: (a.severity || "warning") as "info" | "warning" | "critical",
+  };
+}
+
+export function mapRecurringPayment(r: ApiRecurringPaymentItem): RecurringPayment {
+  return {
+    id: r.id,
+    merchant: r.merchant,
+    category: r.category,
+    estimatedAmount: r.estimated_amount,
+    frequency: r.frequency,
+    lastPaymentDate: r.last_payment_date,
+    nextExpectedDate: r.next_expected_date || undefined,
+    confidence: r.confidence,
+    status: r.status,
+  };
+}
+
 /**
  * Maps raw FastAPI spending response (snake_case) to frontend SpendingIntelligenceData (camelCase)
  */
@@ -226,13 +265,7 @@ export function mapSpendingResponse(
   }
 
   if (isApiSpendingData(raw)) {
-    const categories: CategorySpend[] = (raw.categories || []).map((c) => ({
-      category: c.category,
-      amount: c.amount,
-      percentage: c.percentage,
-      color: c.color,
-      monthOverMonthChangePct: c.month_over_month_change_pct,
-    }));
+    const categories: CategorySpend[] = (raw.categories || []).map(mapCategorySpend);
 
     const monthlyTrend: MonthlySpendTrend[] = (raw.monthly_trend || []).map((t) => ({
       month: t.month,
@@ -240,30 +273,11 @@ export function mapSpendingResponse(
       budget: t.budget,
     }));
 
-    const anomalies: SpendingAnomaly[] = (raw.anomalies || []).map((a) => ({
-      id: a.id,
-      category: a.category,
-      title: a.title,
-      description: a.description,
-      percentageAboveAverage: a.percentage_above_average,
-      historicalAverage: a.historical_average,
-      currentAmount: a.current_amount,
-      severity: (a.severity || "warning") as "info" | "warning" | "critical",
-    }));
+    const anomalies: SpendingAnomaly[] = (raw.anomalies || []).map(mapSpendingAnomaly);
 
     const recentTransactions: Transaction[] = (raw.recent_transactions || []).map(mapTransactionItem);
 
-    const recurringPayments: RecurringPayment[] = (raw.recurring_payments || []).map((r: ApiRecurringPaymentItem) => ({
-      id: r.id,
-      merchant: r.merchant,
-      category: r.category,
-      estimatedAmount: r.estimated_amount,
-      frequency: r.frequency,
-      lastPaymentDate: r.last_payment_date,
-      nextExpectedDate: r.next_expected_date || undefined,
-      confidence: r.confidence,
-      status: r.status,
-    }));
+    const recurringPayments: RecurringPayment[] = (raw.recurring_payments || []).map(mapRecurringPayment);
 
     return {
       totalSpendingCurrentMonth: raw.total_spending_current_month,

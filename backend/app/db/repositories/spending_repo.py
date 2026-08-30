@@ -53,21 +53,25 @@ class SpendingRepository:
             )
 
         if not canonical_list:
-            # Return clean empty intelligence object
+            # Return clean empty intelligence object with all required fields initialized to zero
             return SpendingIntelligenceResponse(
                 total_spending_current_month=0.0,
-                spending_delta_pct=0.0,
-                average_monthly_spend=0.0,
                 total_income_current_month=0.0,
                 net_cashflow=0.0,
-                discretionary_spending=0.0,
+                spending_average_6mo=0.0,
+                mom_change_percentage=0.0,
+                average_transaction_amount=0.0,
                 essential_spending=0.0,
+                discretionary_spending=0.0,
+                discretionary_ratio=0.0,
                 categories=[],
+                top_merchants=[],
                 monthly_trend=[],
                 anomalies=[],
                 recurring_payments=[],
                 recent_transactions=[],
-                total_transactions_count=0
+                total_transactions_count=0,
+                is_demo=False
             )
 
         analytics = calculate_spending_analytics(canonical_list)
