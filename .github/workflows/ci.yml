@@ -106,7 +106,7 @@ jobs:
 
       - name: Run Next.js Production Build
         run: |
-          npm run build
+          npm run build || (echo "=== NEXT BUILD ERROR OUTPUT ===" && cat .next/build-manifest.json 2>/dev/null || true && exit 1)
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
           NEXT_TELEMETRY_DISABLED: 1
