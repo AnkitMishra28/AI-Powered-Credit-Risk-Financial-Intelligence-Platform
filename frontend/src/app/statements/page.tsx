@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatementUploader } from "@/components/fintech/StatementUploader";
@@ -15,12 +15,12 @@ export default function StatementsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadData = useCallback(async () => {
+  const refreshData = async () => {
     setLoading(true);
     try {
       const [stmtList, txnData] = await Promise.all([
-        getStatements(1),
-        getTransactions({ limit: 100, userId: 1 }),
+        getStatements(),
+        getTransactions({ limit: 100 }),
       ]);
       setStatements(stmtList);
       setTransactions(txnData.items);
@@ -29,37 +29,33 @@ export default function StatementsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
     let isMounted = true;
-    const init = async () => {
-      try {
-        const [stmtList, txnData] = await Promise.all([
-          getStatements(1),
-          getTransactions({ limit: 100, userId: 1 }),
-        ]);
-        if (isMounted) {
-          setStatements(stmtList);
-          setTransactions(txnData.items);
-          setLoading(false);
-        }
-      } catch (e) {
-        if (isMounted) {
-          console.error("Failed to load initial statement data:", e);
-          setLoading(false);
-        }
+    Promise.all([
+      getStatements(),
+      getTransactions({ limit: 100 }),
+    ]).then(([stmtList, txnData]) => {
+      if (isMounted) {
+        setStatements(stmtList);
+        setTransactions(txnData.items);
+        setLoading(false);
       }
-    };
+    }).catch((e) => {
+      if (isMounted) {
+        console.error("Failed to fetch initial statements/transactions:", e);
+        setLoading(false);
+      }
+    });
 
-    void init();
     return () => {
       isMounted = false;
     };
   }, []);
 
   const handleUploadSuccess = () => {
-    void loadData();
+    void refreshData();
   };
 
   return (
@@ -72,7 +68,7 @@ export default function StatementsPage() {
           badge="Deterministic Pipeline"
           actions={
             <button
-              onClick={() => void loadData()}
+              onClick={() => void refreshData()}
               className="px-3.5 py-1.5 rounded-xl bg-[#0E1510] border border-white/[0.1] text-xs font-semibold text-neutral-300 hover:text-white hover:border-emerald-500/30 transition-colors flex items-center gap-1.5"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-emerald-400" : ""}`} />
@@ -99,12 +95,9 @@ export default function StatementsPage() {
               <FileText className="w-5 h-5 text-emerald-400" />
               <h2 className="text-lg font-bold text-white tracking-tight">Extracted Transaction Ledger</h2>
             </div>
-            <span className="text-xs text-neutral-400">
-              {transactions.length} Canonical Records Ingested
-            </span>
           </div>
 
-          <TransactionLedger transactions={transactions} totalCount={transactions.length} isLoading={loading} />
+          <TransactionLedger transactions={transactions} isLoading={loading} />
         </div>
       </div>
     </AppLayout>

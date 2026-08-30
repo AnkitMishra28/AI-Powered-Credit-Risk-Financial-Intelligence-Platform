@@ -11,54 +11,53 @@ from app.schemas.common import ApiResponse
 from app.services.risk_service import risk_service
 from app.db.session import get_db
 from app.db.repositories.risk_prediction_repo import risk_prediction_repo
-from app.api.deps import get_optional_current_user
+from app.api.deps import get_current_user, get_optional_current_user
 from app.models.user import User
 
 router = APIRouter()
 
 @router.get("/analysis", response_model=ApiResponse[RiskAnalysisResponse], summary="Get Credit Risk Analysis")
 async def get_risk_analysis(
-    demo: bool = Query(True, description="Retrieve demo account risk prediction"),
-    current_user: Optional[User] = Depends(get_optional_current_user),
+    demo: bool = Query(True, description="Retrieve demo account risk prediction if demo user"),
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db)
 ):
     """
     Retrieves the real machine learning risk classification, probability distribution, and SHAP explainability insights.
-    Persists evaluation record per user.
+    Persists evaluation record per authenticated user.
     """
     try:
         data = risk_service.get_demo_risk_analysis()
         
-        if current_user:
-            shap_dicts = [
-                {
-                    "feature_name": s.feature_name,
-                    "display_name": s.display_name,
-                    "impact_value": s.impact_value,
-                    "feature_value": s.feature_value,
-                    "is_positive": s.is_positive
-                }
-                for s in data.model_explainability
-            ]
-            await risk_prediction_repo.save_prediction(
-                session=session,
-                user_id=current_user.id,
-                risk_category=data.risk_category,
-                confidence_percentage=data.confidence_percentage,
-                low_risk_probability=data.probability_distribution.low_risk,
-                medium_risk_probability=data.probability_distribution.medium_risk,
-                high_risk_probability=data.probability_distribution.high_risk,
-                top_positive_factors=data.top_positive_factors,
-                risk_factors=data.risk_factors,
-                shap_explanations=shap_dicts,
-                model_version=data.model_version
-            )
+        shap_dicts = [
+            {
+                "feature_name": s.feature_name,
+                "display_name": s.display_name,
+                "impact_value": s.impact_value,
+                "feature_value": s.feature_value,
+                "is_positive": s.is_positive
+            }
+            for s in data.model_explainability
+        ]
+        await risk_prediction_repo.save_prediction(
+            session=session,
+            user_id=current_user.id,
+            risk_category=data.risk_category,
+            confidence_percentage=data.confidence_percentage,
+            low_risk_probability=data.probability_distribution.low_risk,
+            medium_risk_probability=data.probability_distribution.medium_risk,
+            high_risk_probability=data.probability_distribution.high_risk,
+            top_positive_factors=data.top_positive_factors,
+            risk_factors=data.risk_factors,
+            shap_explanations=shap_dicts,
+            model_version=data.model_version
+        )
 
         return ApiResponse(
             success=True,
             message="Risk assessment calculated successfully via XGBoost",
             data=data,
-            is_demo=current_user.is_demo if current_user else True
+            is_demo=current_user.is_demo
         )
     except Exception as e:
         raise HTTPException(

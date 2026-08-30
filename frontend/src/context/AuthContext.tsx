@@ -22,13 +22,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(() => {
     if (typeof window !== "undefined") {
-      const savedUser = localStorage.getItem("creditlens_user");
-      if (savedUser) {
-        try {
-          return JSON.parse(savedUser);
-        } catch {
-          return DEMO_USER;
+      try {
+        const savedUserStr = localStorage.getItem("creditlens_user");
+        if (savedUserStr) {
+          const savedUser = JSON.parse(savedUserStr);
+          if (savedUser && savedUser.id) return savedUser;
         }
+      } catch {
+        // Fallback to DEMO_USER
       }
     }
     return DEMO_USER;
@@ -36,14 +37,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const [isDemoMode, setIsDemoMode] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
-      const savedUser = localStorage.getItem("creditlens_user");
-      if (savedUser) {
-        try {
-          const parsed = JSON.parse(savedUser);
-          return parsed.isDemo ?? true;
-        } catch {
-          return true;
+      try {
+        const savedUserStr = localStorage.getItem("creditlens_user");
+        if (savedUserStr) {
+          const savedUser = JSON.parse(savedUserStr);
+          return savedUser.isDemo ?? true;
         }
+      } catch {
+        return true;
       }
     }
     return true;
@@ -60,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem("creditlens_user", JSON.stringify(profile));
         }
       }).catch(() => {
-        // Fallback to existing session or demo
+        // Stale token, keep existing state
       });
     }
   }, []);

@@ -2,7 +2,7 @@
 CreditLens Copilot Schemas
 Pydantic contracts for RAG inquiry requests and grounded responses.
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
@@ -18,9 +18,7 @@ class CitationSource(BaseModel):
     url: Optional[str] = Field(None, alias="source_url")
     source_url: Optional[str] = None
     relevance_score: float = 0.95
-
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 class GroundingFact(BaseModel):
     label: str

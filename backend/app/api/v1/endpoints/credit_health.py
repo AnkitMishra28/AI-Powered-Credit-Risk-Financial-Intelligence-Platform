@@ -11,58 +11,56 @@ from app.schemas.common import ApiResponse
 from app.services.credit_service import credit_health_service
 from app.db.session import get_db
 from app.db.repositories.credit_health_repo import credit_health_repo
-from app.api.deps import get_optional_current_user
+from app.api.deps import get_current_user, get_optional_current_user
 from app.models.user import User
 
 router = APIRouter()
 
 @router.get("/summary", response_model=ApiResponse[CreditHealthResponse], summary="Get Credit Health Summary")
 async def get_credit_health_summary(
-    demo: bool = Query(True, description="Retrieve demo account metrics"),
-    current_user: Optional[User] = Depends(get_optional_current_user),
+    demo: bool = Query(True, description="Retrieve demo account metrics if demo user"),
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db)
 ):
     """
     Retrieves the proprietary CreditLens Credit Health Score and individual factor breakdown metrics,
-    persisting a snapshot to the user's audit log.
+    persisting a snapshot to the authenticated user's audit log.
     """
     try:
         data = credit_health_service.get_demo_credit_health()
         
-        # Persist snapshot if authenticated user
-        if current_user:
-            factor_dicts = [
-                {
-                    "factor_id": f.factor_id,
-                    "name": f.name,
-                    "score": f.score,
-                    "weight": f.weight,
-                    "status": f.status,
-                    "description": f.description,
-                    "impact_detail": f.impact_detail
-                }
-                for f in data.factors
-            ]
-            await credit_health_repo.save_snapshot(
-                session=session,
-                user_id=current_user.id,
-                score=data.health_score,
-                tier=data.score_tier,
-                score_delta=data.score_delta,
-                payment_reliability_score=data.factors[0].score if len(data.factors) > 0 else 94.0,
-                utilization_score=data.factors[1].score if len(data.factors) > 1 else 68.0,
-                debt_burden_score=data.factors[2].score if len(data.factors) > 2 else 74.0,
-                tenure_score=data.factors[3].score if len(data.factors) > 3 else 84.0,
-                spending_stability_score=data.factors[4].score if len(data.factors) > 4 else 99.0,
-                factors=factor_dicts,
-                disclaimer=data.disclaimer
-            )
+        factor_dicts = [
+            {
+                "factor_id": f.factor_id,
+                "name": f.name,
+                "score": f.score,
+                "weight": f.weight,
+                "status": f.status,
+                "description": f.description,
+                "impact_detail": f.impact_detail
+            }
+            for f in data.factors
+        ]
+        await credit_health_repo.save_snapshot(
+            session=session,
+            user_id=current_user.id,
+            score=data.health_score,
+            tier=data.score_tier,
+            score_delta=data.score_delta,
+            payment_reliability_score=data.factors[0].score if len(data.factors) > 0 else 94.0,
+            utilization_score=data.factors[1].score if len(data.factors) > 1 else 68.0,
+            debt_burden_score=data.factors[2].score if len(data.factors) > 2 else 74.0,
+            tenure_score=data.factors[3].score if len(data.factors) > 3 else 84.0,
+            spending_stability_score=data.factors[4].score if len(data.factors) > 4 else 99.0,
+            factors=factor_dicts,
+            disclaimer=data.disclaimer
+        )
 
         return ApiResponse(
             success=True,
             message="Credit health calculated successfully via deterministic scoring engine",
             data=data,
-            is_demo=current_user.is_demo if current_user else True
+            is_demo=current_user.is_demo
         )
     except Exception as e:
         raise HTTPException(

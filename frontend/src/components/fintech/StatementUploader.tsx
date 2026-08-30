@@ -99,7 +99,7 @@ export function StatementUploader({ onUploadSuccess }: StatementUploaderProps) {
     }, 450);
 
     try {
-      const result = await uploadStatement(file, 1);
+      const result = await uploadStatement(file);
       clearInterval(stageInterval);
       setCurrentStage(STAGES.length - 1);
       setSuccessData({ summary: result.statement, count: result.transactionCount });

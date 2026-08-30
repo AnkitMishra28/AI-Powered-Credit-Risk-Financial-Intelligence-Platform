@@ -31,7 +31,7 @@ async def register_user(
             detail="An account with this email address already exists."
         )
 
-    is_demo = "demo" in payload.email.lower()
+    is_demo = payload.email.lower().strip() == "alex.mercer@fintech.demo"
     user = await user_repo.create_user(
         session=session,
         email=payload.email,

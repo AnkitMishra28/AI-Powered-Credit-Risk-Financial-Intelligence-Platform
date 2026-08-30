@@ -136,7 +136,10 @@ def calculate_spending_analytics(
     all_months = sorted(set(list(months_spend.keys()) + list(months_income.keys())))
     monthly_trend: List[MonthlySpendingTrend] = []
     for m in all_months:
-        dt_month = datetime.strptime(m, "%Y-%m").strftime("%b")
+        try:
+            dt_month = datetime.strptime(m, "%Y-%m").strftime("%b")
+        except Exception:
+            dt_month = m
         s = months_spend[m]
         inc = months_income[m]
         monthly_trend.append(

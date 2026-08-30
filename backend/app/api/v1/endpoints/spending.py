@@ -16,16 +16,15 @@ from app.schemas.spending import (
 from app.schemas.common import ApiResponse
 from app.services.spending_service import spending_service
 from app.db.session import get_db
-from app.api.deps import get_optional_current_user
+from app.api.deps import get_current_user
 from app.models.user import User
 
 router = APIRouter()
 
 @router.get("/overview", response_model=ApiResponse[SpendingIntelligenceResponse], summary="Get Spending Intelligence")
 async def get_spending_overview(
-    demo: bool = Query(True, description="Retrieve demo account spending data or user statement analytics"),
-    user_id: Optional[int] = Query(None, description="Optional user identifier"),
-    current_user: Optional[User] = Depends(get_optional_current_user),
+    demo: bool = Query(True, description="Retrieve demo account spending data if demo user"),
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db)
 ):
     """
@@ -33,11 +32,10 @@ async def get_spending_overview(
     Uses authenticated user's persisted transactions from database.
     """
     try:
-        effective_user_id = current_user.id if current_user else (user_id or 1)
         data = await spending_service.get_user_spending_intelligence_async(
             session=session,
-            user_id=effective_user_id,
-            demo=demo
+            user_id=current_user.id,
+            demo=demo and current_user.is_demo
         )
         return ApiResponse(
             success=True,
@@ -53,20 +51,18 @@ async def get_spending_overview(
 
 @router.get("/categories", response_model=ApiResponse[List[CategorySpend]], summary="Get Category Breakdown")
 async def get_category_breakdown(
-    user_id: Optional[int] = Query(None, description="Optional user identifier"),
-    demo: bool = Query(True, description="Use demo fallback"),
-    current_user: Optional[User] = Depends(get_optional_current_user),
+    demo: bool = Query(True, description="Use demo fallback if demo user"),
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db)
 ):
     """
-    Retrieves category-level expenditure aggregations and percentages for the user.
+    Retrieves category-level expenditure aggregations and percentages for the authenticated user.
     """
     try:
-        effective_user_id = current_user.id if current_user else (user_id or 1)
         overview = await spending_service.get_user_spending_intelligence_async(
             session=session,
-            user_id=effective_user_id,
-            demo=demo
+            user_id=current_user.id,
+            demo=demo and current_user.is_demo
         )
         return ApiResponse(
             success=True,
@@ -82,20 +78,18 @@ async def get_category_breakdown(
 
 @router.get("/anomalies", response_model=ApiResponse[List[SpendingAnomaly]], summary="Get Spending Anomalies")
 async def get_spending_anomalies(
-    user_id: Optional[int] = Query(None, description="Optional user identifier"),
-    demo: bool = Query(True, description="Use demo fallback"),
-    current_user: Optional[User] = Depends(get_optional_current_user),
+    demo: bool = Query(True, description="Use demo fallback if demo user"),
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db)
 ):
     """
-    Retrieves statistically detected spending anomalies and category velocity spikes for the user.
+    Retrieves statistically detected spending anomalies and category velocity spikes for the authenticated user.
     """
     try:
-        effective_user_id = current_user.id if current_user else (user_id or 1)
         overview = await spending_service.get_user_spending_intelligence_async(
             session=session,
-            user_id=effective_user_id,
-            demo=demo
+            user_id=current_user.id,
+            demo=demo and current_user.is_demo
         )
         return ApiResponse(
             success=True,
@@ -111,20 +105,18 @@ async def get_spending_anomalies(
 
 @router.get("/recurring", response_model=ApiResponse[List[RecurringPaymentItem]], summary="Get Recurring Payments & Subscriptions")
 async def get_recurring_payments(
-    user_id: Optional[int] = Query(None, description="Optional user identifier"),
-    demo: bool = Query(True, description="Use demo fallback"),
-    current_user: Optional[User] = Depends(get_optional_current_user),
+    demo: bool = Query(True, description="Use demo fallback if demo user"),
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db)
 ):
     """
-    Retrieves detected recurring charges, streaming subscriptions, and regular loan EMIs for the user.
+    Retrieves detected recurring charges, streaming subscriptions, and regular loan EMIs for the authenticated user.
     """
     try:
-        effective_user_id = current_user.id if current_user else (user_id or 1)
         overview = await spending_service.get_user_spending_intelligence_async(
             session=session,
-            user_id=effective_user_id,
-            demo=demo
+            user_id=current_user.id,
+            demo=demo and current_user.is_demo
         )
         return ApiResponse(
             success=True,

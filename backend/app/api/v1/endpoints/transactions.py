@@ -12,7 +12,7 @@ from app.ingestion.models import CanonicalTransaction
 from app.ingestion.service import ingestion_service
 from app.db.session import get_db
 from app.db.repositories.transaction_repo import transaction_repo
-from app.api.deps import get_optional_current_user
+from app.api.deps import get_current_user
 from app.models.user import User
 
 router = APIRouter()
@@ -35,9 +35,8 @@ async def list_transactions(
     search: Optional[str] = Query(None, description="Search term in merchant or description"),
     limit: int = Query(50, ge=1, le=500, description="Page limit"),
     offset: int = Query(0, ge=0, description="Page offset"),
-    user_id: Optional[int] = Query(None, description="Optional user identifier"),
-    demo: bool = Query(True, description="Fallback to demo data if empty"),
-    current_user: Optional[User] = Depends(get_optional_current_user),
+    demo: bool = Query(True, description="Fallback to demo data if demo user and empty"),
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db)
 ):
     """
@@ -45,10 +44,9 @@ async def list_transactions(
     Strictly isolates transactions per authenticated user.
     """
     try:
-        effective_user_id = current_user.id if current_user else (user_id or 1)
         db_items, total_count = await transaction_repo.list_by_user(
             session=session,
-            user_id=effective_user_id,
+            user_id=current_user.id,
             category=category,
             search=search,
             transaction_type=txn_type,
@@ -81,8 +79,8 @@ async def list_transactions(
                 )
             )
 
-        # If user has no uploaded transactions and demo is enabled, return demo transactions for user_id=1
-        if total_count == 0 and demo and effective_user_id == 1:
+        # Fallback to demo profile ONLY for designated demo user if no statements have been uploaded yet
+        if total_count == 0 and demo and current_user.is_demo and current_user.email == "alex.mercer@fintech.demo":
             demo_txns = ingestion_service.get_demo_transactions()
             filtered = demo_txns
             if category and category.lower() != "all":
@@ -110,7 +108,7 @@ async def list_transactions(
             success=True,
             message="Transactions retrieved successfully",
             data=response_data,
-            is_demo=total_count == 0 or (effective_user_id == 1 and len(db_items) == 0)
+            is_demo=current_user.is_demo and len(db_items) == 0
         )
     except Exception as e:
         raise HTTPException(
@@ -120,16 +118,14 @@ async def list_transactions(
 
 @router.post("/reprocess", response_model=ApiResponse[ReprocessResponse], summary="Reprocess Normalization & Categorization")
 async def reprocess_transactions(
-    user_id: Optional[int] = Query(None, description="User identifier"),
-    current_user: Optional[User] = Depends(get_optional_current_user),
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db)
 ):
     """
-    Re-runs normalization and categorization rules across all stored transactions for the user.
+    Re-runs normalization and categorization rules across all stored transactions for the authenticated user.
     """
     try:
-        effective_user_id = current_user.id if current_user else (user_id or 1)
-        txns = await transaction_repo.get_all_for_user(session, effective_user_id)
+        txns = await transaction_repo.get_all_for_user(session, current_user.id)
         count = len(txns)
         return ApiResponse(
             success=True,
@@ -138,7 +134,7 @@ async def reprocess_transactions(
                 reprocessed_count=count,
                 message=f"Successfully verified {count} transactions."
             ),
-            is_demo=False
+            is_demo=current_user.is_demo
         )
     except Exception as e:
         raise HTTPException(
