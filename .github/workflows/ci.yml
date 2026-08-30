@@ -98,7 +98,7 @@ jobs:
 
       - name: Install Frontend Dependencies
         run: |
-          npm ci || (echo "=== NPM ERROR LOG ===" && (cat /home/runner/.npm/_logs/*.log 2>/dev/null || cat ~/.npm/_logs/*.log 2>/dev/null || true) && exit 1)
+          npm ci
 
       - name: Run ESLint
         run: |
