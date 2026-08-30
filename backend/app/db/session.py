@@ -4,9 +4,9 @@ Configures asynchronous SQLAlchemy engine with PostgreSQL/pgvector support and
 automatic SQLite fallback for robust local and test suite operation.
 """
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.pool import NullPool
 from sqlalchemy import select
 from typing import AsyncGenerator
-import os
 import logging
 from app.core.config import settings
 from app.db.base import Base
@@ -14,18 +14,13 @@ from app.db.base import Base
 logger = logging.getLogger("creditlens.db")
 
 # Determine active database URL
-db_url = settings.DATABASE_URL or settings.async_database_url
-
-# If default postgres URL is configured without valid credentials, use persistent SQLite file
-if "postgresql" in db_url and not os.getenv("DATABASE_URL"):
-    # Default to sqlite for local standalone zero-configuration reliability
-    db_url = "sqlite+aiosqlite:///./creditlens.db"
+db_url = settings.async_database_url
 
 engine = create_async_engine(
     db_url,
     echo=False,
     future=True,
-    pool_pre_ping=True if "sqlite" not in db_url else False,
+    poolclass=NullPool,
 )
 
 AsyncSessionLocal = async_sessionmaker(

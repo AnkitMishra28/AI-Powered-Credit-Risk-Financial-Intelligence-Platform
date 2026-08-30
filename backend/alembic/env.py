@@ -22,10 +22,7 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 def get_url():
-    url = settings.DATABASE_URL or settings.async_database_url
-    if "postgresql" in url and not os.getenv("DATABASE_URL"):
-        url = "sqlite+aiosqlite:///./creditlens.db"
-    return url
+    return settings.DATABASE_URL or settings.async_database_url
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
