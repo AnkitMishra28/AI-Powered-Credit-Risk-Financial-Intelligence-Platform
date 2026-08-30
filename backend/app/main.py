@@ -29,6 +29,12 @@ async def lifespan(app: FastAPI):
         logger.info("Database schema verified and ready.")
     except Exception as e:
         logger.warning(f"Database initialization deferred or offline: {e}")
+    try:
+        from app.rag.service import rag_copilot_service
+        rag_copilot_service.initialize_knowledge_base()
+        logger.info("RAG Knowledge Base initialized and ready.")
+    except Exception as e:
+        logger.warning(f"RAG Knowledge Base initialization deferred: {e}")
     yield
     # Shutdown
     logger.info(f"Shutting down {settings.PROJECT_NAME}")
