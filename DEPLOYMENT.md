@@ -118,7 +118,7 @@ GEMINI_API_KEY=your_gemini_api_key_here
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=your_strong_postgres_password
 POSTGRES_DB=creditlens
-NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+NEXT_PUBLIC_API_URL=/api/v1
 ```
 
 ### 3. Next.js Standalone Build Support

@@ -1,0 +1,28 @@
+# ==============================================================================
+# CreditLens Render Infrastructure Blueprint (render.yaml)
+# Enables one-click Blueprint deployment for the FastAPI backend service
+# ==============================================================================
+
+services:
+  - type: web
+    name: creditlens-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/v1/health/live
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: BACKEND_CORS_ORIGINS
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: LOG_LEVEL
+        value: INFO
+      - key: RATE_LIMIT_ENABLED
+        value: "true"
