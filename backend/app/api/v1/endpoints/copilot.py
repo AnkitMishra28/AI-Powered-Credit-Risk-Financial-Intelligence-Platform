@@ -1,7 +1,7 @@
 """
 CreditLens Financial Copilot Endpoints
 Handles natural-language RAG financial inquiries with authoritative regulatory citations,
-metric grounding, and user-scoped query history persistence.
+metric grounding, rate limiting, and user-scoped query history persistence.
 """
 from fastapi import APIRouter, Query, Depends, HTTPException, status
 from typing import List
@@ -12,12 +12,19 @@ from app.schemas.common import ApiResponse
 from app.services.copilot_service import copilot_service
 from app.db.session import get_db
 from app.db.repositories.copilot_repo import copilot_repo
+from app.core.rate_limiter import rate_limit_dependency
+from app.core.config import settings
 from app.api.deps import get_current_user
 from app.models.user import User
 
 router = APIRouter()
 
-@router.post("/query", response_model=ApiResponse[CopilotQueryResponse], summary="Ask CreditLens Copilot (RAG + Gemini)")
+@router.post(
+    "/query",
+    response_model=ApiResponse[CopilotQueryResponse],
+    summary="Ask CreditLens Copilot (RAG + Gemini)",
+    dependencies=[Depends(rate_limit_dependency(max_requests=settings.RATE_LIMIT_COPILOT_PER_MIN, window_seconds=60))]
+)
 async def query_copilot(
     request: CopilotQueryRequest,
     demo: bool = Query(True, description="Use demo profile data if demo user"),
@@ -28,6 +35,7 @@ async def query_copilot(
     Submits an inquiry to the Ask CreditLens RAG Assistant.
     Retrieves authoritative regulatory frameworks (RBI Master Directions) and personal CreditLens metrics,
     synthesizing grounded, non-hallucinated explanations and persisting query records.
+    Rate limited against generative AI quota abuse.
     """
     try:
         response_data = copilot_service.query(

@@ -1,6 +1,6 @@
 """
 CreditLens User Authentication Endpoints
-Handles user registration, login with bcrypt verification, token issuance, and profile retrieval.
+Handles user registration, login with bcrypt verification, token issuance, rate limiting, and profile retrieval.
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,18 +11,26 @@ from app.schemas.common import ApiResponse
 from app.db.session import get_db
 from app.db.repositories.user_repo import user_repo
 from app.core.security import create_access_token
+from app.core.rate_limiter import rate_limit_dependency
+from app.core.config import settings
 from app.api.deps import get_current_user
 from app.models.user import User
 
 router = APIRouter()
 
-@router.post("/register", response_model=ApiResponse[TokenResponse], summary="Register New User")
+@router.post(
+    "/register",
+    response_model=ApiResponse[TokenResponse],
+    summary="Register New User",
+    dependencies=[Depends(rate_limit_dependency(max_requests=settings.RATE_LIMIT_AUTH_PER_MIN, window_seconds=60))]
+)
 async def register_user(
     payload: UserCreate,
     session: AsyncSession = Depends(get_db)
 ):
     """
     Registers a new financial member with encrypted password and issues a signed JWT token.
+    Rate limited to prevent automated registration spam.
     """
     existing_user = await user_repo.get_by_email(session, payload.email)
     if existing_user:
@@ -65,13 +73,19 @@ async def register_user(
         is_demo=user.is_demo
     )
 
-@router.post("/login", response_model=ApiResponse[TokenResponse], summary="User Login")
+@router.post(
+    "/login",
+    response_model=ApiResponse[TokenResponse],
+    summary="User Login",
+    dependencies=[Depends(rate_limit_dependency(max_requests=settings.RATE_LIMIT_AUTH_PER_MIN, window_seconds=60))]
+)
 async def login_user(
     payload: UserLogin,
     session: AsyncSession = Depends(get_db)
 ):
     """
     Authenticates user credentials using bcrypt and returns a signed JWT access token.
+    Rate limited against brute-force password guessing.
     """
     user = await user_repo.authenticate(session, payload.email, payload.password)
     if not user:

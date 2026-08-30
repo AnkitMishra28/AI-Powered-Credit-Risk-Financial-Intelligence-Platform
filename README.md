@@ -5,7 +5,7 @@
 
 ---
 
-## 📌 Project Overview
+## Project Overview
 
 CreditLens is a production-grade full-stack fintech platform designed to bridge the gap between traditional quantitative credit assessment and modern explainable artificial intelligence.
 
@@ -35,7 +35,7 @@ LLM SYNTHESIS & INSIGHTS         ──►  Natural Language Grounded Explanatio
 
 ---
 
-## 🏛️ System Architecture
+## System Architecture
 
 ```
                        ┌────────────────────────────────────────┐
@@ -74,7 +74,7 @@ LLM SYNTHESIS & INSIGHTS         ──►  Natural Language Grounded Explanatio
 
 ---
 
-## 🔒 Phase 6: Production Data Layer, Real Authentication & User-Scoped Intelligence
+## Phase 6: Production Data Layer, Real Authentication & User-Scoped Intelligence
 
 ### 1. Multi-Tenant User Isolation & Security Guarantees
 - **Authentication Lifecycle**: Built on native `bcrypt` cryptographic password hashing and signed JSON Web Tokens (`HS256`) with expiration.
@@ -85,7 +85,7 @@ LLM SYNTHESIS & INSIGHTS         ──►  Natural Language Grounded Explanatio
 
 ---
 
-## 🧠 Phase 5: RAG-Powered Financial Copilot & Knowledge Retrieval
+## Phase 5: RAG-Powered Financial Copilot & Knowledge Retrieval
 
 ### 1. Authoritative Knowledge Base
 - **Legitimate Regulatory & Educational Sources**:
@@ -124,7 +124,7 @@ Response Validation + Traceable Source Citations + Key Takeaways
 
 ---
 
-## 📂 Phase 4: Financial Statement & Transaction Intelligence Subsystem
+##  Phase 4: Financial Statement & Transaction Intelligence Subsystem
 
 - **Multi-Format Ingestion**: Supports `.csv` and text-based `.pdf` statements up to 10 MB.
 - **CSV & PDF Parsers** ([`csv_parser.py`](backend/app/ingestion/csv_parser.py), [`pdf_parser.py`](backend/app/ingestion/pdf_parser.py)): Header mapping, date normalization, currency cleaning, and SHA-256 deduplication.
@@ -135,7 +135,7 @@ Response Validation + Traceable Source Citations + Key Takeaways
 
 ---
 
-## 📊 Phase 3: Machine Learning & Credit Health Engine
+## Phase 3: Machine Learning & Credit Health Engine
 
 ### 1. Public Benchmark Dataset & Classification Framing
 - **Dataset**: South German Credit (*Groemping, 2020 / UCI Machine Learning Repository / OpenML `credit-g`*).
@@ -156,7 +156,7 @@ Response Validation + Traceable Source Citations + Key Takeaways
 
 ---
 
-## 💻 Local Setup & Execution Commands
+## Local Setup & Execution Commands
 
 ### 1. Backend Setup & Ingestion Tests
 ```bash
@@ -214,7 +214,7 @@ npm run dev
 
 ---
 
-## 🔌 API Endpoints Catalog
+## API Endpoints Catalog
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
@@ -227,6 +227,9 @@ npm run dev
 | `POST` | `/api/v1/statements/upload` | Ingests CSV/PDF statement, normalizes merchants, categorizes transactions, deduplicates |
 | `GET` | `/api/v1/statements` | Lists uploaded financial statements with file metadata and totals |
 | `GET` | `/api/v1/statements/{id}` | Retrieves specific statement processing status and summary |
+| `GET` | `/api/v1/health` | Lightweight service health ping |
+| `GET` | `/api/v1/health/live` | Kubernetes/Docker process liveness probe |
+| `GET` | `/api/v1/health/ready` | Deep readiness probe (Database, ML model, RAG vector store) |
 | `GET` | `/api/v1/transactions` | Paginated, filterable canonical transaction ledger (search, category, type) |
 | `POST` | `/api/v1/transactions/reprocess` | Re-executes entity normalization and category taxonomy across transactions |
 | `GET` | `/api/v1/spending/overview` | Deterministic cashflow metrics, category breakdowns, anomalies, and recurring items |
@@ -241,13 +244,15 @@ npm run dev
 
 ---
 
-## 🛡️ Phase 7: Production Readiness Audit, End-to-End Validation & Hardening
+## 🚢 Phase 8: Production Deployment, CI/CD, Observability & Release Engineering
 
-### Audited & Hardened Systems
-1. **Strict Token-Derived Multi-Tenant Security**: All user-scoped endpoints (`/statements`, `/transactions`, `/spending`, `/credit-health/summary`, `/risk/analysis`, `/copilot`) derive identity strictly from the verified cryptographically-signed JWT Bearer token claims, completely rejecting client user ID manipulation and returning strict `401 Unauthorized` on missing, expired, or malformed tokens.
-2. **Deterministic Mathematical Clamping**: All statistical spending velocity calculators, Credit Health 0–1000 formulas, and XGBoost probability normalizers include division-by-zero checks and strict range bounding $[0.00, 1.00]$.
-3. **Workspace & Build Optimization**: Clean single-lockfile dependency resolution, zero TypeScript errors, clean React 19 / ESLint rule compliance, and Turbopack production builds across all 11 application routes.
-4. **End-to-End Test Suite**: 24 automated unit and integration tests verifying schema migrations, bcrypt password hashing, token validation, deduplication, tenant isolation, SHAP explainability, and prompt injection defense.
+### Production Stack Highlights
+1. **Containerized Production Topology**: Full-stack multi-stage Dockerfiles for Next.js (Node 20 standalone) and FastAPI (Python 3.11-slim with non-root security), orchestrated via `docker-compose.yml` with PostgreSQL `pgvector:pg16`.
+2. **Kubernetes & Cloud Probes**: Active `/health/live` and `/health/ready` endpoints verifying database connectivity, ML model availability, and RAG vector store status.
+3. **Observability & Request Correlation**: `X-Request-ID` correlation tracking, latency tracking (`X-Process-Time`), and sensitive data log sanitization.
+4. **Security & Abuse Protection**: OWASP security headers (`nosniff`, `DENY` frame options, XSS protection, HSTS) and sliding-window rate limiting on login, registration, uploads, and AI queries.
+5. **Continuous Integration**: `.github/workflows/ci.yml` running automated Python bytecode verification, Alembic migrations, 27 Pytest integration tests, Next.js ESLint, and production build checks.
+6. **Documentation & Release Checklist**: Complete [`DEPLOYMENT.md`](./DEPLOYMENT.md) and [`docs/PRODUCTION_CHECKLIST.md`](./docs/PRODUCTION_CHECKLIST.md).
 
 ---
 

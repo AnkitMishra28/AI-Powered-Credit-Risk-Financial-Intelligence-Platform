@@ -1,22 +1,32 @@
-from fastapi import FastAPI, Request
+"""
+CreditLens Enterprise FastAPI Application Entry Point
+Configures Lifespan, CORS, Security Headers, Observability Middleware,
+Centralized Error Handling, and API Routes.
+"""
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from contextlib import asynccontextmanager
-import time
 
 from app.core.config import settings
-from app.core.logging import setup_logging, logger
+from app.core.logging import setup_logging, logger, get_request_id
+from app.core.middleware import RequestObservabilityMiddleware, SecurityHeadersMiddleware
 from app.api.v1.router import api_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    setup_logging()
+    setup_logging(
+        log_level=settings.LOG_LEVEL,
+        json_format=(settings.ENVIRONMENT == "production")
+    )
     logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION} [{settings.ENVIRONMENT}]")
     try:
         from app.db.session import init_db
         await init_db()
-        logger.info("Database schema initialized and verified.")
+        logger.info("Database schema verified and ready.")
     except Exception as e:
         logger.warning(f"Database initialization deferred or offline: {e}")
     yield
@@ -27,29 +37,76 @@ app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
     description="CreditLens AI-Powered Credit Risk & Financial Intelligence Platform API",
-    openapi_url=f"{settings.API_V1_STR}/openapi.json",
-    docs_url=f"{settings.API_V1_STR}/docs",
-    redoc_url=f"{settings.API_V1_STR}/redoc",
+    openapi_url=f"{settings.API_V1_STR}/openapi.json" if settings.ENVIRONMENT != "production" else None,
+    docs_url=f"{settings.API_V1_STR}/docs" if settings.ENVIRONMENT != "production" else None,
+    redoc_url=f"{settings.API_V1_STR}/redoc" if settings.ENVIRONMENT != "production" else None,
     lifespan=lifespan
 )
 
-# Set CORS middleware
+# 1. Observability & Correlation Middleware
+app.add_middleware(RequestObservabilityMiddleware)
+
+# 2. Security Headers Middleware
+app.add_middleware(SecurityHeadersMiddleware)
+
+# 3. CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS or ["*"],
+    allow_origins=settings.BACKEND_CORS_ORIGINS if isinstance(settings.BACKEND_CORS_ORIGINS, list) else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Global Request Timing & Logging Middleware
-@app.middleware("http")
-async def add_process_time_header(request: Request, call_next):
-    start_time = time.time()
-    response = await call_next(request)
-    process_time = time.time() - start_time
-    response.headers["X-Process-Time"] = str(round(process_time * 1000, 2)) + "ms"
-    return response
+# Centralized Exception Handling
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    req_id = get_request_id()
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "success": False,
+            "message": exc.detail,
+            "error_code": f"HTTP_{exc.status_code}",
+            "request_id": req_id
+        },
+        headers=getattr(exc, "headers", None)
+    )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    req_id = get_request_id()
+    errors = exc.errors()
+    # Format a safe message without leaking internal schemas
+    formatted_msg = "; ".join(f"{'.'.join(str(loc) for loc in err['loc'])}: {err['msg']}" for err in errors[:3])
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "success": False,
+            "message": f"Request validation failed: {formatted_msg}",
+            "error_code": "VALIDATION_ERROR",
+            "request_id": req_id
+        }
+    )
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    req_id = get_request_id()
+    logger.error(f"Unhandled Exception [id: {req_id}]: {str(exc)}", exc_info=True)
+    
+    detail = "An internal server error occurred. Please contact support with your Request ID."
+    if settings.ENVIRONMENT != "production":
+        detail = f"Internal error: {str(exc)}"
+
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "success": False,
+            "message": detail,
+            "error_code": "INTERNAL_SERVER_ERROR",
+            "request_id": req_id
+        }
+    )
 
 # Include Versioned API Router
 app.include_router(api_router, prefix=settings.API_V1_STR)
@@ -58,8 +115,9 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 async def root():
     return {
         "message": "Welcome to CreditLens API",
-        "docs": f"{settings.API_V1_STR}/docs",
+        "docs": f"{settings.API_V1_STR}/docs" if settings.ENVIRONMENT != "production" else "Disabled in production",
         "health": f"{settings.API_V1_STR}/health",
         "version": settings.VERSION,
+        "environment": settings.ENVIRONMENT,
         "status": "operational"
     }

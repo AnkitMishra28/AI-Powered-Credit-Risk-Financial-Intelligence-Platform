@@ -96,6 +96,9 @@ class VectorStore:
     def get_chunk_count(self) -> int:
         return len(self._chunks)
 
+    def count(self) -> int:
+        return len(self._chunks)
+
     def get_document_count(self) -> int:
         return len(set(c.document_id for c in self._chunks.values()))
 

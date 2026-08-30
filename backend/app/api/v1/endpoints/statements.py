@@ -1,6 +1,6 @@
 """
 CreditLens Statement Upload & Management Endpoints
-Handles CSV and PDF statement file uploads, validation, and persistent user-scoped metadata queries.
+Handles CSV and PDF statement file uploads, validation, rate limiting, and persistent user-scoped metadata queries.
 """
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
 from typing import List
@@ -13,6 +13,8 @@ from app.ingestion.validators import IngestionValidationError
 from app.ingestion.service import ingestion_service
 from app.db.session import get_db
 from app.db.repositories.statement_repo import statement_repo
+from app.core.rate_limiter import rate_limit_dependency
+from app.core.config import settings
 from app.api.deps import get_current_user
 from app.models.user import User
 
@@ -24,7 +26,12 @@ class StatementUploadResponse(BaseModel):
     total_debits: float
     total_credits: float
 
-@router.post("/upload", response_model=ApiResponse[StatementUploadResponse], summary="Upload Bank/Card Statement (CSV/PDF)")
+@router.post(
+    "/upload",
+    response_model=ApiResponse[StatementUploadResponse],
+    summary="Upload Bank/Card Statement (CSV/PDF)",
+    dependencies=[Depends(rate_limit_dependency(max_requests=settings.RATE_LIMIT_UPLOAD_PER_MIN, window_seconds=60))]
+)
 async def upload_statement(
     file: UploadFile = File(..., description="CSV or PDF statement file"),
     current_user: User = Depends(get_current_user),
@@ -34,6 +41,7 @@ async def upload_statement(
     Ingests, validates, parses, normalizes, categorizes, and persists a statement file.
     Supports CSV and text-based PDF statements up to 10 MB with SHA-256 deduplication.
     Strictly binds statement and transactions to authenticated user.
+    Rate limited against upload abuse.
     """
     try:
         file_bytes = await file.read()

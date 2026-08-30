@@ -1,14 +1,24 @@
 """
 CreditLens Ingestion Validators
-Validates uploaded financial statements for size, format, extension, and integrity.
+Validates uploaded financial statements for size, format, extension, magic bytes, and integrity.
 """
+import re
+import os
 from typing import Tuple
-
-MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
+from app.core.config import settings
 
 class IngestionValidationError(Exception):
     """Raised when an uploaded statement fails security or format validation."""
     pass
+
+# Executable magic bytes signatures to strictly reject
+EXECUTABLE_SIGNATURES = [
+    b"MZ",           # Windows PE EXE / DLL
+    b"\x7fELF",      # Linux ELF binary
+    b"\xca\xfe\xba\xbe", # Mach-O binary
+    b"\xfe\xed\xfa\xce", # Mach-O 32-bit
+    b"\xfe\xed\xfa\xcf", # Mach-O 64-bit
+]
 
 def validate_statement_upload(
     filename: str,
@@ -25,41 +35,57 @@ def validate_statement_upload(
     if not filename or len(filename.strip()) == 0:
         raise IngestionValidationError("Uploaded filename cannot be empty.")
 
-    # Sanitize filename (strip directory traversal patterns)
-    clean_name = filename.replace("\\", "/").split("/")[-1].strip()
-    if not clean_name:
-        raise IngestionValidationError("Invalid filename.")
+    # 1. Reject null bytes and directory traversal attempts
+    if "\x00" in filename or ".." in filename:
+        raise IngestionValidationError("Invalid filename: Directory traversal or null byte detected.")
 
-    # Check file size
+    # Extract base filename and sanitize characters
+    base_name = os.path.basename(filename.replace("\\", "/")).strip()
+    name_part, ext_part = os.path.splitext(base_name)
+    sanitized_name_part = re.sub(r"[^a-zA-Z0-9_.-]", "_", name_part)
+    clean_name = f"{sanitized_name_part}{ext_part.lower()}"
+
+    if not clean_name or clean_name.startswith("."):
+        raise IngestionValidationError("Invalid sanitized filename.")
+
+    # 2. Check file size against configured limit
+    max_size = getattr(settings, "MAX_UPLOAD_SIZE_BYTES", 10 * 1024 * 1024)
     if len(file_bytes) == 0:
         raise IngestionValidationError("Uploaded file is empty (0 bytes).")
 
-    if len(file_bytes) > MAX_FILE_SIZE_BYTES:
+    if len(file_bytes) > max_size:
         raise IngestionValidationError(
-            f"File size ({len(file_bytes) / (1024 * 1024):.1f} MB) exceeds maximum allowed limit of 10 MB."
+            f"File size ({len(file_bytes) / (1024 * 1024):.1f} MB) exceeds maximum allowed limit of {max_size / (1024 * 1024):.0f} MB."
         )
 
-    # Determine extension
-    lower_name = clean_name.lower()
-    if lower_name.endswith(".csv"):
+    # 3. Reject executable content masquerading as statements
+    for sig in EXECUTABLE_SIGNATURES:
+        if file_bytes.startswith(sig):
+            raise IngestionValidationError("Executable binary content detected. Upload rejected.")
+
+    # 4. Determine and validate extension
+    lower_ext = ext_part.lower()
+    if lower_ext == ".csv":
         file_type = "csv"
-        # Validate CSV contains text characters
+        # Validate CSV contains text characters and recognized delimiters
         try:
-            sample = file_bytes[:1024].decode("utf-8", errors="replace")
+            sample = file_bytes[:1024].decode("utf-8", errors="strict")
             if not any(delimiter in sample for delimiter in [",", ";", "\t", "|"]):
                 raise IngestionValidationError("CSV file does not contain recognized tabular column delimiters.")
+        except UnicodeDecodeError:
+            raise IngestionValidationError("CSV file contains invalid or binary text encoding.")
         except Exception as e:
-            raise IngestionValidationError(f"Malformed CSV text encoding: {str(e)}")
+            raise IngestionValidationError(f"Malformed CSV: {str(e)}")
 
-    elif lower_name.endswith(".pdf"):
+    elif lower_ext == ".pdf":
         file_type = "pdf"
         # Validate PDF magic bytes header (%PDF-)
         if not file_bytes.startswith(b"%PDF-"):
-            raise IngestionValidationError("File has .pdf extension but lacks valid PDF header signature.")
+            raise IngestionValidationError("File has .pdf extension but lacks valid PDF header signature (%PDF-).")
 
     else:
         raise IngestionValidationError(
-            f"Unsupported file format '{clean_name.split('.')[-1]}'. Supported statement formats are CSV and PDF."
+            f"Unsupported file extension '{ext_part}'. Supported statement formats are .csv and .pdf."
         )
 
     return clean_name, file_type
