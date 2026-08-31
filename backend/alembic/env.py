@@ -16,7 +16,9 @@ from app.core.config import settings
 config = context.config
 
 # Interpret the config file for Python logging.
-if config.config_file_name is not None:
+# Skipped when invoked in-process from the app (apply_migrations_sync passes
+# configure_logger=False) so alembic does not tear down the app's logging.
+if config.config_file_name is not None and config.attributes.get("configure_logger", True):
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata

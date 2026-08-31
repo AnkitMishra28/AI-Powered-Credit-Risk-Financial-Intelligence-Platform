@@ -136,3 +136,42 @@ def test_E_downgrade_then_reupgrade_is_clean(db):
     assert u.returncode == 0, u.stderr
     assert "designation" in _cols(db, "users")
     assert "profile_inputs" in _cols(db, "credit_health_snapshots")
+
+
+def test_F_in_process_apply_migrations_sync_heals_unstamped_prod_like_db(db, tmp_path):
+    """
+    The app's startup lifespan calls `app.db.session.apply_migrations_sync()`.
+    Prove it (not just the `alembic` CLI) heals the realistic production state:
+    tables present (built by create_all), `alembic_version` absent, and the
+    002/003 columns missing — with an existing user row that must survive.
+    """
+    script = tmp_path / "run_apply.py"
+    script.write_text(
+        "import os, sqlite3, asyncio\n"
+        f"os.environ['DATABASE_URL'] = 'sqlite+aiosqlite:///{db.as_posix()}'\n"
+        "os.environ['ENVIRONMENT'] = 'testing'\n"
+        "from app.db.session import init_db, apply_migrations_sync\n"
+        "asyncio.run(init_db())\n"
+        f"con = sqlite3.connect(r'{db}')\n"
+        "con.execute(\"INSERT INTO users (email,hashed_password,full_name,is_active,is_superuser,is_demo)"
+        " VALUES ('legacy@heal.test','h','Legacy',1,0,0)\")\n"
+        "con.commit()\n"
+        "con.execute('ALTER TABLE users DROP COLUMN designation')\n"
+        "con.execute('ALTER TABLE credit_health_snapshots DROP COLUMN profile_inputs')\n"
+        "con.execute('DROP TABLE IF EXISTS alembic_version')\n"
+        "con.commit(); con.close()\n"
+        "apply_migrations_sync()\n"
+    )
+    env = dict(os.environ)
+    env.pop("DATABASE_URL", None)
+    env["PYTHONPATH"] = str(_BACKEND)
+    r = subprocess.run([_PY, str(script)], cwd=_BACKEND, env=env, capture_output=True, text=True)
+    assert r.returncode == 0, f"{r.stdout}\n{r.stderr}"
+    assert "designation" in _cols(db, "users")
+    assert "profile_inputs" in _cols(db, "credit_health_snapshots")
+    con = sqlite3.connect(db)
+    try:
+        assert con.execute("SELECT COUNT(*) FROM users WHERE email='legacy@heal.test'").fetchone()[0] == 1
+        assert con.execute("SELECT version_num FROM alembic_version").fetchone()[0] == HEAD
+    finally:
+        con.close()

@@ -7,11 +7,40 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from sqlalchemy.pool import NullPool
 from sqlalchemy import select
 from typing import AsyncGenerator
+from pathlib import Path
 import logging
 from app.core.config import settings
 from app.db.base import Base
 
 logger = logging.getLogger("creditlens.db")
+
+# backend/  (this file is backend/app/db/session.py)
+_BACKEND_DIR = Path(__file__).resolve().parents[2]
+
+
+def apply_migrations_sync() -> None:
+    """
+    Run ``alembic upgrade head`` in-process.
+
+    Called from the app's startup lifespan so the deployed database schema is
+    ALWAYS brought current, regardless of how the process is launched — a Render
+    dashboard "Start Command" of just ``uvicorn ...`` (which overrides
+    render.yaml), a bare ``uvicorn``, Docker, etc. The migration chain is
+    idempotent and non-destructive, so running it on every boot is safe and a
+    no-op once the DB is at head.
+
+    MUST be invoked from a worker thread (see lifespan): alembic's ``env.py``
+    starts its own asyncio event loop, which cannot happen inside the running
+    ASGI loop.
+    """
+    from alembic.config import Config
+    from alembic import command
+
+    cfg = Config(str(_BACKEND_DIR / "alembic.ini"))
+    cfg.set_main_option("script_location", str(_BACKEND_DIR / "alembic"))
+    # Do not let alembic's fileConfig() tear down the app's logging setup.
+    cfg.attributes["configure_logger"] = False
+    command.upgrade(cfg, "head")
 
 # Determine active database URL
 db_url = settings.async_database_url

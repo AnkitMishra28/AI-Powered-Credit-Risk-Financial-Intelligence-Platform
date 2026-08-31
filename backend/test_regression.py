@@ -360,6 +360,58 @@ def test_cors_rejects_a_non_allowed_origin():
     )
 
 
+def test_cors_headers_are_present_on_a_500_error_response():
+    """
+    A browser reports a bare 500 (no CORS headers) as an opaque "CORS policy"
+    error, masking the real failure. The exception handlers must re-attach CORS
+    headers for an allowed Origin so the frontend gets the real status/body.
+    """
+    from starlette.testclient import TestClient as _RawTC
+    from app.main import app
+
+    marker = "/__regression_boom__"
+
+    @app.get(marker)
+    def _boom():  # pragma: no cover - trivial
+        raise RuntimeError("intentional test failure")
+
+    try:
+        raw = _RawTC(app, raise_server_exceptions=False)
+        r = raw.get(marker, headers={"Origin": "https://some-preview.vercel.app"})
+        assert r.status_code == 500
+        assert r.headers.get("access-control-allow-origin") == "https://some-preview.vercel.app"
+        assert r.headers.get("access-control-allow-credentials") == "true"
+        # A disallowed origin must NOT be echoed even on an error.
+        r2 = raw.get(marker, headers={"Origin": "https://evil.example.com"})
+        assert r2.status_code == 500
+        assert r2.headers.get("access-control-allow-origin") != "https://evil.example.com"
+    finally:
+        app.router.routes = [
+            rt for rt in app.router.routes if getattr(rt, "path", None) != marker
+        ]
+
+
+def test_login_route_does_a_user_table_select_that_matches_the_model():
+    """
+    Regression for the production 500 on /users/login and /users/register: the
+    User model gained `designation` but the deployed DB lacked the column, so
+    every `select(User)` raised. Here the schema is migrated to head (conftest +
+    lifespan-equivalent), so a login attempt reaches the auth logic and returns a
+    clean 401 for bad credentials — never a 500.
+    """
+    r = client.post(
+        "/api/v1/users/login",
+        json={"email": "definitely-not-registered@example.com", "password": "whatever12345"},
+    )
+    assert r.status_code == 401, r.text
+    body = r.json()
+    assert body["success"] is False
+    # And a real registration round-trips the new column.
+    email, tok, _uid = _register("designation.column")
+    me = client.get("/api/v1/users/me", headers={"Authorization": f"Bearer {tok}"}).json()["data"]
+    assert "designation" in me and me["designation"] is None
+
+
 def test_real_user_category_mom_change_is_not_fabricated():
     _e, tok, _uid = _register("spend.mom")
     h = {"Authorization": f"Bearer {tok}"}
