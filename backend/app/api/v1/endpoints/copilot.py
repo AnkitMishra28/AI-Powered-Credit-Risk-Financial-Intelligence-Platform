@@ -38,10 +38,18 @@ async def query_copilot(
     Rate limited against generative AI quota abuse.
     """
     try:
+        # Strict demo/real boundary: only the seeded demo account is grounded in the
+        # canonical demo financial profile. A real authenticated user is grounded
+        # solely in their own analyzed data (currently surfaced via the dedicated
+        # credit-health / risk / spending endpoints) or nothing at all — never the
+        # demo profile, and the copilot must not invent user-specific figures.
+        is_demo_session = bool(current_user.is_demo)
         response_data = copilot_service.query(
             request,
             user_id=current_user.id,
-            demo=demo and current_user.is_demo
+            demo=is_demo_session,
+            real_user=not is_demo_session,
+            real_user_context=None,
         )
 
         # Persist copilot interaction in DB for authenticated user

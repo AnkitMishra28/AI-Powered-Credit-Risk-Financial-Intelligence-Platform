@@ -21,27 +21,48 @@ from app.models.user import User
 
 router = APIRouter()
 
+
+def _spending_state(current_user: User, data) -> tuple[str, bool]:
+    """
+    Derives explicit (data_status, has_financial_data) from the authenticated identity
+    and the user's real transaction count. `demo` is decided ONLY by the trusted
+    is_demo flag on the account, never by a request parameter.
+    """
+    if current_user.is_demo:
+        return "demo", True
+    if (getattr(data, "total_transactions_count", 0) or 0) > 0:
+        return "ok", True
+    return "no_data", False
+
+
 @router.get("/overview", response_model=ApiResponse[SpendingIntelligenceResponse], summary="Get Spending Intelligence")
 async def get_spending_overview(
-    demo: bool = Query(True, description="Retrieve demo account spending data if demo user"),
+    demo: bool = Query(True, description="(Ignored for real users) Only the seeded demo account receives demo data"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db)
 ):
     """
-    Retrieves deterministic spending velocity, category allocations, anomaly flags, and recent transactions.
-    Uses authenticated user's persisted transactions from database.
+    Retrieves deterministic spending velocity, category allocations, anomaly flags, and recent transactions
+    strictly from the authenticated user's own persisted transactions. A brand-new real user with zero
+    transactions receives a zeroed payload with data_status="no_data" (never demo/Alex Mercer data).
     """
     try:
         data = await spending_service.get_user_spending_intelligence_async(
             session=session,
             user_id=current_user.id,
-            demo=demo and current_user.is_demo
+            demo=current_user.is_demo
         )
+        data_status, has_data = _spending_state(current_user, data)
         return ApiResponse(
             success=True,
-            message="Spending intelligence retrieved successfully",
+            message=(
+                "Spending intelligence retrieved successfully" if has_data
+                else "No transaction data yet. Upload a bank statement to see spending analytics."
+            ),
             data=data,
-            is_demo=data.is_demo
+            is_demo=data.is_demo,
+            data_status=data_status,
+            has_financial_data=has_data,
         )
     except Exception as e:
         raise HTTPException(
@@ -62,13 +83,16 @@ async def get_category_breakdown(
         overview = await spending_service.get_user_spending_intelligence_async(
             session=session,
             user_id=current_user.id,
-            demo=demo and current_user.is_demo
+            demo=current_user.is_demo
         )
+        _status, _has_data = _spending_state(current_user, overview)
         return ApiResponse(
             success=True,
             message="Category spending breakdown retrieved",
             data=overview.categories,
-            is_demo=overview.is_demo
+            is_demo=overview.is_demo,
+            data_status=_status,
+            has_financial_data=_has_data,
         )
     except Exception as e:
         raise HTTPException(
@@ -89,13 +113,16 @@ async def get_spending_anomalies(
         overview = await spending_service.get_user_spending_intelligence_async(
             session=session,
             user_id=current_user.id,
-            demo=demo and current_user.is_demo
+            demo=current_user.is_demo
         )
+        _status, _has_data = _spending_state(current_user, overview)
         return ApiResponse(
             success=True,
             message="Detected spending anomalies retrieved",
             data=overview.anomalies,
-            is_demo=overview.is_demo
+            is_demo=overview.is_demo,
+            data_status=_status,
+            has_financial_data=_has_data,
         )
     except Exception as e:
         raise HTTPException(
@@ -116,13 +143,16 @@ async def get_recurring_payments(
         overview = await spending_service.get_user_spending_intelligence_async(
             session=session,
             user_id=current_user.id,
-            demo=demo and current_user.is_demo
+            demo=current_user.is_demo
         )
+        _status, _has_data = _spending_state(current_user, overview)
         return ApiResponse(
             success=True,
             message="Recurring payments retrieved",
             data=overview.recurring_payments or [],
-            is_demo=overview.is_demo
+            is_demo=overview.is_demo,
+            data_status=_status,
+            has_financial_data=_has_data,
         )
     except Exception as e:
         raise HTTPException(

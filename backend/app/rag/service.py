@@ -66,14 +66,22 @@ class RAGCopilotService:
         self,
         request: CopilotQueryRequest,
         user_id: int = 1,
-        demo: bool = True
+        demo: bool = True,
+        real_user: bool = False,
+        real_user_context: Optional[StructuredUserFinancialContext] = None,
     ) -> CopilotResponse:
         """
         Executes end-to-end grounded RAG Copilot pipeline for a user inquiry.
+
+        Personal-context grounding rules:
+          * demo session (real_user=False, demo=True) -> demo/canonical financial context
+          * real user (real_user=True)                -> ONLY `real_user_context`, which the
+            caller derives from that user's own persisted data (or None when they have no
+            analyzed profile). The canonical demo context is never used for a real user.
         """
         start_time = time.time()
         conv_id = request.conversation_id or f"conv-{uuid.uuid4().hex[:12]}"
-        
+
         # Ensure knowledge base is populated
         self.initialize_knowledge_base()
 
@@ -88,17 +96,24 @@ class RAGCopilotService:
             )
         retrieval_latency_ms = round((time.time() - t_retrieval_start) * 1000, 2)
 
-        # 2. Build Structured User Financial Context
+        # 2. Build Structured User Financial Context (strict demo/real boundary)
         user_context: Optional[StructuredUserFinancialContext] = None
         if request.include_personal_context:
-            user_context = user_context_builder.build_user_context(user_id=user_id, demo=demo)
+            if real_user:
+                user_context = real_user_context  # real data or None — never demo
+            elif demo:
+                user_context = user_context_builder.build_user_context(user_id=user_id, demo=True)
+        personal_context_missing = bool(
+            request.include_personal_context and real_user and user_context is None
+        )
 
         # 3. Gemini / Grounded Synthesis
         t_gen_start = time.time()
         synthesis = gemini_service.generate_grounded_response(
             query=request.query,
             retrieved_chunks=retrieved_chunks,
-            user_context=user_context
+            user_context=user_context,
+            personal_context_missing=personal_context_missing,
         )
         gen_latency_ms = round((time.time() - t_gen_start) * 1000, 2)
         total_latency_ms = round((time.time() - start_time) * 1000, 2)
@@ -120,7 +135,8 @@ class RAGCopilotService:
             grounding_summary={
                 "retrieved_chunks_count": len(retrieved_chunks),
                 "retrieval_used": len(retrieved_chunks) > 0,
-                "personal_context_used": request.include_personal_context,
+                "personal_context_used": user_context is not None,
+                "personal_context_missing": personal_context_missing,
                 "retrieval_latency_ms": retrieval_latency_ms,
                 "total_latency_ms": total_latency_ms,
             },

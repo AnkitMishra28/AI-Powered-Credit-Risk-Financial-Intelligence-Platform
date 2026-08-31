@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useCreditLens } from "@/context/CreditLensContext";
+import { creditService } from "@/services/creditService";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
@@ -23,39 +24,65 @@ import {
 } from "lucide-react";
 import { formatINR } from "@/lib/utils";
 
+const money = (raw: string): string => {
+  const n = parseFloat(raw);
+  return Number.isFinite(n) && n > 0 ? formatINR(n) : "—";
+};
+
 export default function OnboardingPage() {
   const router = useRouter();
-  const { loginAsDemo } = useAuth();
-  const { updateFinancialProfile } = useCreditLens();
+  const { loginAsDemo, isDemoMode } = useAuth();
+  const { updateFinancialProfile, refreshData } = useCreditLens();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [employmentType, setEmploymentType] = useState("Salaried (Full-Time)");
-  const [monthlyIncome, setMonthlyIncome] = useState("65000");
-  const [creditLimit, setCreditLimit] = useState("250000");
-  const [revolvingBalance, setRevolvingBalance] = useState("170000");
-  const [monthlyEMI, setMonthlyEMI] = useState("8500");
-  const [uploadedFileName] = useState<string | null>("bank_statement_q1_2026.pdf");
+  const [monthlyIncome, setMonthlyIncome] = useState("");
+  const [creditLimit, setCreditLimit] = useState("");
+  const [revolvingBalance, setRevolvingBalance] = useState("");
+  const [monthlyEMI, setMonthlyEMI] = useState("");
+  const [uploadedFileName] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep < 4) {
       setCurrentStep(currentStep + 1);
-    } else {
-      setIsProcessing(true);
-      // Save to context
-      updateFinancialProfile({
-        employmentType,
-        monthlyIncome: parseFloat(monthlyIncome) || 65000,
-        creditLimitTotal: parseFloat(creditLimit) || 250000,
-        revolvingBalanceTotal: parseFloat(revolvingBalance) || 170000,
-        totalMonthlyEMI: parseFloat(monthlyEMI) || 8500,
-      });
-
-      setTimeout(() => {
-        setIsProcessing(false);
-        router.push("/dashboard");
-      }, 1000);
+      return;
     }
+
+    setIsProcessing(true);
+
+    const income = parseFloat(monthlyIncome);
+    const limit = parseFloat(creditLimit);
+    const balance = parseFloat(revolvingBalance);
+    const emi = parseFloat(monthlyEMI);
+
+    updateFinancialProfile({
+      employmentType,
+      monthlyIncome: income || 0,
+      creditLimitTotal: limit || 0,
+      revolvingBalanceTotal: balance || 0,
+      totalMonthlyEMI: emi || 0,
+    });
+
+    // For a real (non-demo) user with a complete profile, compute and persist
+    // their OWN CreditLens Health Score from these inputs so the dashboard shows
+    // real data rather than "not calculated". Best-effort — never blocks navigation.
+    if (!isDemoMode && income > 0 && limit > 0) {
+      try {
+        await creditService.calculateCreditHealth({
+          monthly_income: income,
+          credit_limit_total: limit,
+          revolving_balance_total: balance || 0,
+          total_monthly_emi: emi || 0,
+        });
+        await refreshData();
+      } catch {
+        /* keep the no-data dashboard state; user can retry from Credit Health */
+      }
+    }
+
+    setIsProcessing(false);
+    router.push("/dashboard");
   };
 
   const handleDemoPreset = async () => {
@@ -205,7 +232,9 @@ export default function OnboardingPage() {
               <div className="p-3.5 bg-[#0E1510] rounded-xl border border-white/[0.08] text-xs flex items-center justify-between">
                 <span className="text-neutral-400">Calculated Utilization Ratio:</span>
                 <span className="font-mono font-bold text-amber-400 text-sm">
-                  {((parseFloat(revolvingBalance) / parseFloat(creditLimit)) * 100).toFixed(1)}%
+                  {parseFloat(creditLimit) > 0 && parseFloat(revolvingBalance) >= 0
+                    ? `${((parseFloat(revolvingBalance) / parseFloat(creditLimit)) * 100).toFixed(1)}%`
+                    : "—"}
                 </span>
               </div>
             </div>
@@ -269,17 +298,17 @@ export default function OnboardingPage() {
               <div className="p-4 bg-[#0E1510] rounded-xl border border-white/[0.08] space-y-2 text-xs">
                 <div className="flex justify-between py-1.5 border-b border-white/[0.06]">
                   <span className="text-neutral-400">Monthly Net Income:</span>
-                  <span className="font-mono font-bold text-white text-xs">{formatINR(parseFloat(monthlyIncome))}</span>
+                  <span className="font-mono font-bold text-white text-xs">{money(monthlyIncome)}</span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-white/[0.06]">
                   <span className="text-neutral-400">Credit Limit / Balance:</span>
                   <span className="font-mono font-bold text-white text-xs">
-                    {formatINR(parseFloat(revolvingBalance))} / {formatINR(parseFloat(creditLimit))}
+                    {money(revolvingBalance)} / {money(creditLimit)}
                   </span>
                 </div>
                 <div className="flex justify-between py-1">
                   <span className="text-neutral-400">Monthly Loan EMI:</span>
-                  <span className="font-mono font-bold text-white text-xs">{formatINR(parseFloat(monthlyEMI))}</span>
+                  <span className="font-mono font-bold text-white text-xs">{money(monthlyEMI)}</span>
                 </div>
               </div>
             </div>

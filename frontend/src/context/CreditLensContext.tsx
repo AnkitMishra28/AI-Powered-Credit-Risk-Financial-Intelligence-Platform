@@ -6,25 +6,43 @@ import {
   RiskAnalysisData,
   SpendingIntelligenceData,
   FinancialProfile,
-  InsightNotification
+  InsightNotification,
 } from "@/types";
 import {
   DEMO_CREDIT_HEALTH,
   DEMO_RISK_ANALYSIS,
   DEMO_SPENDING_INTELLIGENCE,
   DEMO_FINANCIAL_PROFILE,
-  DEMO_NOTIFICATIONS
+  DEMO_NOTIFICATIONS,
 } from "@/lib/demo-data";
 import { creditService } from "@/services/creditService";
 import { riskService } from "@/services/riskService";
 import { spendingService } from "@/services/spendingService";
+import type { DataResult, SectionStatus } from "@/services/api";
 import { useAuth } from "./AuthContext";
 
+/**
+ * Per-section data state. `status` is the single source of truth for what the UI
+ * should render:
+ *   loading            - request in flight
+ *   ok                 - real, user-owned computed data (in `data`)
+ *   demo               - intentional demo dataset (demo session only, in `data`)
+ *   no_data            - authenticated real user has uploaded nothing yet (`data` is null)
+ *   insufficient_data  - real user has some data but not enough for this metric (`data` is null)
+ *   error              - the API could not be reached
+ */
+export type SectionState<T> = {
+  data: T | null;
+  status: SectionStatus;
+  message: string;
+};
+
 interface CreditLensContextType {
+  creditHealth: SectionState<CreditHealthData>;
+  riskAnalysis: SectionState<RiskAnalysisData>;
+  spending: SectionState<SpendingIntelligenceData>;
+  hasAnyFinancialData: boolean;
   financialProfile: FinancialProfile;
-  creditHealth: CreditHealthData;
-  riskAnalysis: RiskAnalysisData;
-  spending: SpendingIntelligenceData;
   notifications: InsightNotification[];
   unreadNotificationCount: number;
   isLoading: boolean;
@@ -36,64 +54,80 @@ interface CreditLensContextType {
 
 const CreditLensContext = createContext<CreditLensContextType | undefined>(undefined);
 
+const LOADING = <T,>(): SectionState<T> => ({ data: null, status: "loading", message: "" });
+
+/**
+ * Turns a service DataResult into a SectionState. For a DEMO session only, an
+ * unreachable API falls back to the bundled demo dataset so the portfolio demo
+ * never hard-fails. For a real user an error stays an error — demo data is
+ * NEVER substituted.
+ */
+function toSectionState<T>(
+  result: DataResult<T>,
+  isDemoSession: boolean,
+  demoFallback: T
+): SectionState<T> {
+  if (result.status === "error" && isDemoSession) {
+    return { data: demoFallback, status: "demo", message: "Offline demo dataset" };
+  }
+  return { data: result.data, status: result.status, message: result.message };
+}
+
 export function CreditLensProvider({ children }: { children: React.ReactNode }) {
   const { isDemoMode } = useAuth();
+
+  const [creditHealth, setCreditHealth] = useState<SectionState<CreditHealthData>>(LOADING);
+  const [riskAnalysis, setRiskAnalysis] = useState<SectionState<RiskAnalysisData>>(LOADING);
+  const [spending, setSpending] = useState<SectionState<SpendingIntelligenceData>>(LOADING);
+
   const [financialProfile, setFinancialProfile] = useState<FinancialProfile>(DEMO_FINANCIAL_PROFILE);
-  const [creditHealth, setCreditHealth] = useState<CreditHealthData>(DEMO_CREDIT_HEALTH);
-  const [riskAnalysis, setRiskAnalysis] = useState<RiskAnalysisData>(DEMO_RISK_ANALYSIS);
-  const [spending, setSpending] = useState<SpendingIntelligenceData>(DEMO_SPENDING_INTELLIGENCE);
-  const [notifications, setNotifications] = useState<InsightNotification[]>(DEMO_NOTIFICATIONS);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [notifications, setNotifications] = useState<InsightNotification[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const refreshData = useCallback(async () => {
+  const load = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    try {
-      const [healthRes, riskRes, spendingRes] = await Promise.all([
-        creditService.getCreditHealthSummary(isDemoMode),
-        riskService.getRiskAnalysis(isDemoMode),
-        spendingService.getSpendingOverview(isDemoMode)
-      ]);
-      setCreditHealth(healthRes);
-      setRiskAnalysis(riskRes);
-      setSpending(spendingRes);
-    } catch (err: unknown) {
-      console.warn("Using fallback demo dataset:", err);
-      // Fallback state is maintained
-    } finally {
-      setIsLoading(false);
+    setCreditHealth(LOADING);
+    setRiskAnalysis(LOADING);
+    setSpending(LOADING);
+
+    const [healthRes, riskRes, spendingRes] = await Promise.all([
+      creditService.getCreditHealthSummary(),
+      riskService.getRiskAnalysis(),
+      spendingService.getSpendingOverview(),
+    ]);
+
+    setCreditHealth(toSectionState(healthRes, isDemoMode, DEMO_CREDIT_HEALTH));
+    setRiskAnalysis(toSectionState(riskRes, isDemoMode, DEMO_RISK_ANALYSIS));
+    setSpending(toSectionState(spendingRes, isDemoMode, DEMO_SPENDING_INTELLIGENCE));
+
+    // Demo-only scaffolding notifications; real users start with a clean slate.
+    setNotifications(isDemoMode ? DEMO_NOTIFICATIONS : []);
+
+    const anyError =
+      healthRes.status === "error" &&
+      riskRes.status === "error" &&
+      spendingRes.status === "error";
+    if (anyError && !isDemoMode) {
+      setError("Unable to reach the CreditLens API. Please try again shortly.");
     }
+    setIsLoading(false);
   }, [isDemoMode]);
 
   useEffect(() => {
-    let isMounted = true;
-    const load = async () => {
-      try {
-        const [healthRes, riskRes, spendingRes] = await Promise.all([
-          creditService.getCreditHealthSummary(isDemoMode),
-          riskService.getRiskAnalysis(isDemoMode),
-          spendingService.getSpendingOverview(isDemoMode)
-        ]);
-        if (isMounted) {
-          setCreditHealth(healthRes);
-          setRiskAnalysis(riskRes);
-          setSpending(spendingRes);
-        }
-      } catch (err: unknown) {
-        console.warn("Initial data load using fallback:", err);
-      }
-    };
-    load();
+    let active = true;
+    void (async () => {
+      if (!active) return;
+      await load();
+    })();
     return () => {
-      isMounted = false;
+      active = false;
     };
-  }, [isDemoMode]);
+  }, [load]);
 
   const markNotificationAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
   };
 
   const updateFinancialProfile = (updated: Partial<FinancialProfile>) => {
@@ -101,19 +135,27 @@ export function CreditLensProvider({ children }: { children: React.ReactNode }) 
   };
 
   const unreadNotificationCount = notifications.filter((n) => !n.read).length;
+  const hasAnyFinancialData =
+    creditHealth.status === "ok" ||
+    creditHealth.status === "demo" ||
+    riskAnalysis.status === "ok" ||
+    riskAnalysis.status === "demo" ||
+    spending.status === "ok" ||
+    spending.status === "demo";
 
   return (
     <CreditLensContext.Provider
       value={{
-        financialProfile,
         creditHealth,
         riskAnalysis,
         spending,
+        hasAnyFinancialData,
+        financialProfile,
         notifications,
         unreadNotificationCount,
         isLoading,
         error,
-        refreshData,
+        refreshData: load,
         markNotificationAsRead,
         updateFinancialProfile,
       }}

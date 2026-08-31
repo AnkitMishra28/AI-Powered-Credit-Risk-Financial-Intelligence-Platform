@@ -61,6 +61,42 @@ class CreditHealthService:
         )
 
     @staticmethod
+    def build_response_from_snapshot(snapshot, history_snapshots=None) -> CreditHealthResponse:
+        """
+        Rebuilds a CreditHealthResponse from a persisted per-user CreditHealthSnapshot.
+        Used by GET /credit-health/summary so an authenticated real user only ever
+        sees the score that was actually computed from THEIR submitted inputs
+        (never the demo/canonical profile).
+        """
+        factors = []
+        for f in (snapshot.factors or []):
+            try:
+                factors.append(FactorScore(**f))
+            except Exception:
+                continue
+
+        history = []
+        for s in reversed(list(history_snapshots or [])):
+            history.append(
+                CreditHealthHistoryPoint(
+                    month=s.calculated_at.strftime("%b") if getattr(s, "calculated_at", None) else "--",
+                    score=int(s.score),
+                    utilization=round(float(s.utilization_score), 1),
+                )
+            )
+
+        return CreditHealthResponse(
+            health_score=int(snapshot.score),
+            score_tier=snapshot.tier,
+            score_delta=int(snapshot.score_delta),
+            calculation_timestamp=getattr(snapshot, "calculated_at", None) or datetime.utcnow(),
+            factors=factors,
+            history=history,
+            disclaimer=snapshot.disclaimer,
+            is_demo=False,
+        )
+
+    @staticmethod
     def calculate_custom_score(
         monthly_income: float,
         credit_limit_total: float,

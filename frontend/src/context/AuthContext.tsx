@@ -20,34 +20,28 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserProfile | null>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const savedUserStr = localStorage.getItem("creditlens_user");
-        if (savedUserStr) {
-          const savedUser = JSON.parse(savedUserStr);
-          if (savedUser && savedUser.id) return savedUser;
-        }
-      } catch {
-        // Fallback to DEMO_USER
+  // Only a persisted session establishes identity. There is NO implicit demo
+  // default: a brand-new visitor is unauthenticated (isDemoMode=false) and only
+  // enters demo mode by explicitly choosing "Load Demo" (loginAsDemo).
+  const readSavedUser = (): UserProfile | null => {
+    if (typeof window === "undefined") return null;
+    try {
+      const savedUserStr = localStorage.getItem("creditlens_user");
+      if (savedUserStr) {
+        const savedUser = JSON.parse(savedUserStr);
+        if (savedUser && savedUser.id) return savedUser as UserProfile;
       }
+    } catch {
+      /* ignore corrupt storage */
     }
-    return DEMO_USER;
-  });
+    return null;
+  };
+
+  const [user, setUser] = useState<UserProfile | null>(() => readSavedUser());
 
   const [isDemoMode, setIsDemoMode] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const savedUserStr = localStorage.getItem("creditlens_user");
-        if (savedUserStr) {
-          const savedUser = JSON.parse(savedUserStr);
-          return savedUser.isDemo ?? true;
-        }
-      } catch {
-        return true;
-      }
-    }
-    return true;
+    const saved = readSavedUser();
+    return saved ? saved.isDemo === true : false;
   });
 
   // Verify stored session on mount

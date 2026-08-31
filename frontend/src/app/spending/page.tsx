@@ -15,11 +15,61 @@ import { useCreditLens } from "@/context/CreditLensContext";
 import { formatINR } from "@/lib/utils";
 import { CreditCard, Wallet, AlertTriangle, ArrowDownLeft, UploadCloud } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { ErrorState } from "@/components/ui/ErrorState";
 
 export default function SpendingPage() {
-  const { spending } = useCreditLens();
+  const { spending: spendingState, refreshData } = useCreditLens();
+  const spending = spendingState.data;
 
-  const totalIncome = spending.totalIncomeCurrentMonth ?? 65000;
+  if (spendingState.status === "loading") {
+    return (
+      <AppLayout>
+        <PageHeader title="Spending Intelligence & Cashflow Velocity" subtitle="Loading your transaction analytics…" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (spendingState.status === "error") {
+    return (
+      <AppLayout>
+        <PageHeader title="Spending Intelligence & Cashflow Velocity" subtitle="Automated transaction categorization and anomaly detection." />
+        <ErrorState description={spendingState.message || undefined} onRetry={() => void refreshData()} />
+      </AppLayout>
+    );
+  }
+
+  if (!spending) {
+    return (
+      <AppLayout>
+        <PageHeader
+          title="Spending Intelligence & Cashflow Velocity"
+          subtitle="Automated transaction categorization, cashflow velocity tracking, and behavioral anomaly detection."
+          badge={<Badge variant="slate" size="sm">No activity yet</Badge>}
+        />
+        <EmptyState
+          icon={<Wallet className="w-7 h-7" />}
+          title="No financial activity yet"
+          description={
+            spendingState.message ||
+            "Upload a bank statement (CSV or supported text PDF) to analyze spending, categories, anomalies and recurring payments from your own transactions."
+          }
+          actionLabel="Upload a Statement"
+          actionHref="/statements"
+        />
+        <EducationalDisclaimer />
+      </AppLayout>
+    );
+  }
+
+  const totalIncome = spending.totalIncomeCurrentMonth ?? 0;
   const netCashflow = spending.netCashflow ?? (totalIncome - spending.totalSpendingCurrentMonth);
 
   return (

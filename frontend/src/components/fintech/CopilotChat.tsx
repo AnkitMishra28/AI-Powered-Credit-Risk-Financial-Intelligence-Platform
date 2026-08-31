@@ -46,16 +46,16 @@ const ONBOARDING_PROMPTS = [
     query: "What happens if I only pay the minimum amount on my credit card?",
   },
   {
-    title: "Why did my Credit Health Score reach 775?",
-    desc: "Analyze factor weights: 94% payment consistency vs 68% credit utilization drag.",
+    title: "How is a CreditLens Health Score calculated?",
+    desc: "Understand the weighted factors: payment consistency, utilization, debt burden, tenure.",
     icon: TrendingUp,
-    query: "Why is my Credit Health Score 775 and what drives it?",
+    query: "How is the CreditLens Credit Health Score calculated and what factors drive it?",
   },
   {
-    title: "Where is my spending surging this month?",
-    desc: "Investigate the +31% Food & Dining surge vs your 3-month rolling baseline.",
+    title: "How does spending-anomaly detection work?",
+    desc: "Learn how category velocity is compared against a rolling historical baseline.",
     icon: AlertTriangle,
-    query: "Why did my dining spending increase 31% this month?",
+    query: "How does CreditLens detect spending anomalies against a rolling baseline?",
   },
   {
     title: "How can I reduce utilization to <30%?",
@@ -427,7 +427,7 @@ export function CopilotChat({
         <div className="flex items-center justify-between text-xs text-neutral-400 px-1">
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-neutral-300 font-medium">Grounding Matrix:</span> Alex Mercer Profile + RBI Master Directions
+            <span className="text-neutral-300 font-medium">Grounding Matrix:</span> RBI Master Directions + your analyzed data (when available)
           </span>
           <span className="hidden sm:inline text-neutral-400">Press Enter to Send</span>
         </div>

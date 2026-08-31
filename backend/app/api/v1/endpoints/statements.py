@@ -106,11 +106,18 @@ async def list_statements(
             )
         )
 
+    if current_user.is_demo:
+        _status = "demo" if len(summaries) == 0 else "ok"
+    else:
+        _status = "ok" if len(summaries) > 0 else "no_data"
+
     return ApiResponse(
         success=True,
         message="Statements retrieved successfully",
         data=summaries,
-        is_demo=len(summaries) == 0 and current_user.is_demo
+        is_demo=len(summaries) == 0 and current_user.is_demo,
+        data_status=_status,
+        has_financial_data=(_status in ("ok", "demo")),
     )
 
 @router.get("/{statement_id}", response_model=ApiResponse[StatementSummary], summary="Get Statement Detail")

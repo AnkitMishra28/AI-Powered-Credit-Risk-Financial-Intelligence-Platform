@@ -9,6 +9,9 @@ import { EducationalDisclaimer } from "@/components/fintech/EducationalDisclaime
 import { useCreditLens } from "@/context/CreditLensContext";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { ErrorState } from "@/components/ui/ErrorState";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -16,7 +19,53 @@ import {
 } from "lucide-react";
 
 export default function RiskAnalysisPage() {
-  const { riskAnalysis } = useCreditLens();
+  const { riskAnalysis: riskState, refreshData } = useCreditLens();
+  const riskAnalysis = riskState.data;
+
+  if (riskState.status === "loading") {
+    return (
+      <AppLayout>
+        <PageHeader title="Credit Risk Intelligence" subtitle="Loading your risk assessment…" />
+        <div className="space-y-4">
+          <Skeleton className="h-56 w-full" />
+          <Skeleton className="h-40 w-full" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (riskState.status === "error") {
+    return (
+      <AppLayout>
+        <PageHeader title="Credit Risk Intelligence" subtitle="Machine learning multi-class risk classification with TreeSHAP explainability." />
+        <ErrorState description={riskState.message || undefined} onRetry={() => void refreshData()} />
+      </AppLayout>
+    );
+  }
+
+  if (!riskAnalysis) {
+    // no_data / insufficient_data — never show the canonical demo applicant result
+    return (
+      <AppLayout>
+        <PageHeader
+          title="Credit Risk Intelligence"
+          subtitle="Machine learning multi-class risk classification, multi-tier probability distributions, and TreeSHAP feature attributions."
+          badge={<Badge variant="slate" size="sm">Analysis pending</Badge>}
+        />
+        <EmptyState
+          icon={<AlertTriangle className="w-7 h-7" />}
+          title="Risk analysis pending"
+          description={
+            riskState.message ||
+            "The risk model scores a structured applicant credit profile (the public German Credit feature schema) — which a bank statement does not contain. Submit your credit profile to generate a personalized, explainable risk assessment. This is an educational model, not a bureau or underwriting decision."
+          }
+          actionLabel="Go to Statements"
+          actionHref="/statements"
+        />
+        <EducationalDisclaimer />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

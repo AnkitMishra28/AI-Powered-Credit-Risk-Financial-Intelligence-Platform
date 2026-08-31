@@ -44,10 +44,16 @@ class GeminiService:
         self,
         query: str,
         retrieved_chunks: List[RetrievalResult],
-        user_context: Optional[StructuredUserFinancialContext] = None
+        user_context: Optional[StructuredUserFinancialContext] = None,
+        personal_context_missing: bool = False
     ) -> StructuredGeminiResponse:
         """
         Synthesizes a structured, grounded response from retrieved knowledge chunks and user metrics.
+
+        `personal_context_missing` is True when an authenticated real user asked for
+        personalized grounding but has not analyzed any financial data yet. In that case
+        the copilot answers from regulatory knowledge only and must NOT invent any
+        user-specific figures.
         """
         # 1. Check for prompt injection attempts
         lower_q = query.lower()
@@ -95,19 +101,44 @@ class GeminiService:
             )
 
         # 3. Attempt Live Gemini API Call if available
+        result: Optional[StructuredGeminiResponse] = None
         if self._genai is not None:
             try:
                 prompt = build_grounded_prompt(query, retrieved_chunks, user_context)
+                if personal_context_missing:
+                    prompt += (
+                        "\n\nNOTE: The authenticated user has NOT analyzed any financial data yet. "
+                        "Answer ONLY from the authoritative sources. Do NOT state or estimate any "
+                        "user-specific figures (score, utilization, balances, spending). You may note "
+                        "that connecting their financial data unlocks personalized insights.\n"
+                    )
                 response = self._genai.generate_content(prompt)
                 raw_text = response.text.strip()
                 parsed = self._clean_and_parse_json(raw_text)
                 if parsed:
-                    return self._map_to_structured_response(parsed, retrieved_chunks, user_context)
+                    result = self._map_to_structured_response(parsed, retrieved_chunks, user_context)
             except Exception as e:
                 logger.warning(f"Live Gemini call failed, falling back to deterministic synthesis: {e}")
 
         # 4. Deterministic Grounded Synthesis Engine (Guaranteed zero-failure fallback)
-        return self._deterministic_grounded_synthesis(query, retrieved_chunks, user_context)
+        if result is None:
+            result = self._deterministic_grounded_synthesis(query, retrieved_chunks, user_context)
+
+        # 5. If a real user has no analyzed data, make that explicit and strip any
+        #    stray personalized insights so no user-specific figure is ever implied.
+        if personal_context_missing:
+            result.personalized_insights = []
+            note = (
+                "You have not analyzed any financial data yet, so this answer is based only on "
+                "verified regulatory guidance — not your personal profile. Upload a bank statement "
+                "and complete your credit profile to unlock personalized, grounded insights."
+            )
+            if note not in result.answer:
+                result.answer = f"{note}\n\n{result.answer}"
+            if note not in result.key_points:
+                result.key_points = [note] + list(result.key_points)
+
+        return result
 
     def _clean_and_parse_json(self, text: str) -> Optional[Dict[str, Any]]:
         """Cleans markdown JSON fences and parses JSON securely."""

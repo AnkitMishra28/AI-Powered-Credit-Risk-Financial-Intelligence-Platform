@@ -1,58 +1,21 @@
-import { fetchApi } from "./api";
-import { SpendingIntelligenceData, CategorySpend, SpendingAnomaly, RecurringPayment } from "@/types";
-import { ApiSpendingIntelligenceData, ApiCategorySpend, ApiSpendingAnomaly, ApiRecurringPaymentItem } from "@/types/api";
-import { mapSpendingResponse, mapCategorySpend, mapSpendingAnomaly, mapRecurringPayment } from "./mappers";
-import { DEMO_SPENDING_INTELLIGENCE } from "@/lib/demo-data";
+import { fetchSection, DataResult } from "./api";
+import { SpendingIntelligenceData } from "@/types";
+import { ApiSpendingIntelligenceData } from "@/types/api";
+import { mapSpendingResponse } from "./mappers";
 
 export const spendingService = {
-  async getSpendingOverview(isDemo: boolean = true): Promise<SpendingIntelligenceData> {
-    try {
-      const raw = await fetchApi<ApiSpendingIntelligenceData>(
-        `/spending/overview?demo=${isDemo}`,
-        { method: "GET" }
-      );
-      return mapSpendingResponse(raw);
-    } catch {
-      return DEMO_SPENDING_INTELLIGENCE;
-    }
+  /**
+   * Returns the authenticated user's spending-intelligence state, computed
+   * strictly from THEIR persisted transactions:
+   *   - demo account         -> status "demo" with the demo dataset
+   *   - real user w/ txns    -> status "ok" with their real analytics
+   *   - real user w/o txns   -> status "no_data" (data still carries genuine zeros)
+   * Demo / Alex Mercer transactions are never substituted for a real user.
+   */
+  async getSpendingOverview(): Promise<DataResult<SpendingIntelligenceData>> {
+    return fetchSection<ApiSpendingIntelligenceData, SpendingIntelligenceData>(
+      "/spending/overview",
+      mapSpendingResponse
+    );
   },
-
-  async getCategories(isDemo: boolean = true): Promise<CategorySpend[]> {
-    try {
-      const raw = await fetchApi<ApiCategorySpend[]>(
-        `/spending/categories?demo=${isDemo}`,
-        { method: "GET" },
-        []
-      );
-      return (raw || []).map(mapCategorySpend);
-    } catch {
-      return DEMO_SPENDING_INTELLIGENCE.categories;
-    }
-  },
-
-  async getAnomalies(isDemo: boolean = true): Promise<SpendingAnomaly[]> {
-    try {
-      const raw = await fetchApi<ApiSpendingAnomaly[]>(
-        `/spending/anomalies?demo=${isDemo}`,
-        { method: "GET" },
-        []
-      );
-      return (raw || []).map(mapSpendingAnomaly);
-    } catch {
-      return DEMO_SPENDING_INTELLIGENCE.anomalies;
-    }
-  },
-
-  async getRecurring(isDemo: boolean = true): Promise<RecurringPayment[]> {
-    try {
-      const raw = await fetchApi<ApiRecurringPaymentItem[]>(
-        `/spending/recurring?demo=${isDemo}`,
-        { method: "GET" },
-        []
-      );
-      return (raw || []).map(mapRecurringPayment);
-    } catch {
-      return DEMO_SPENDING_INTELLIGENCE.recurringPayments || [];
-    }
-  }
 };

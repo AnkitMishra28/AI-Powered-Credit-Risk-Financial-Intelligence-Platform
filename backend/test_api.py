@@ -329,17 +329,55 @@ def test_user_scoped_spending_overview():
     data = payload["data"]
     assert data["total_spending_current_month"] > 0
     assert len(data["categories"]) >= 3
+    assert payload["data_status"] == "ok"
+    assert payload["has_financial_data"] is True
+    assert payload["is_demo"] is False
     print(f"[PASS] GET /api/v1/spending/overview (Persisted DB Data: INR {data['total_spending_current_month']:,.2f}) passed")
 
-def test_credit_health_snapshot_persistence():
+def test_credit_health_summary_insufficient_without_profile():
+    """User A has uploaded transactions but NO credit profile -> must NOT get a canonical 775 score."""
     headers_a = {"Authorization": f"Bearer {token_a}"}
     response = client.get("/api/v1/credit-health/summary", headers=headers_a)
     assert response.status_code == 200
     payload = response.json()
     assert payload["success"] is True
-    data = payload["data"]
-    assert 0 <= data["health_score"] <= 1000
-    print(f"[PASS] GET /api/v1/credit-health/summary & Snapshot Persistence passed (Score: {data['health_score']})")
+    assert payload["data"] is None
+    assert payload["data_status"] == "insufficient_data"
+    assert payload["has_financial_data"] is False
+    assert payload["is_demo"] is False
+    print("[PASS] GET /api/v1/credit-health/summary returns insufficient_data (no canonical 775) for real user without profile")
+
+def test_credit_health_calculate_then_summary_returns_own_score():
+    """After an AUTHENTICATED /calculate, /summary returns that user's own persisted score (data_status='ok')."""
+    headers_a = {"Authorization": f"Bearer {token_a}"}
+    calc = client.post(
+        "/api/v1/credit-health/calculate",
+        headers=headers_a,
+        json={
+            "monthly_income": 80000.0,
+            "credit_limit_total": 300000.0,
+            "revolving_balance_total": 45000.0,
+            "total_monthly_emi": 12000.0,
+            "payment_consistency_ratio": 0.98,
+            "credit_history_years": 5.5,
+            "monthly_spending_total": 35000.0,
+            "spending_average_6mo": 38000.0
+        }
+    )
+    assert calc.status_code == 200
+    own_score = calc.json()["data"]["health_score"]
+    assert own_score >= 800
+    assert calc.json()["data_status"] == "ok"
+
+    summary = client.get("/api/v1/credit-health/summary", headers=headers_a)
+    assert summary.status_code == 200
+    sp = summary.json()
+    assert sp["data_status"] == "ok"
+    assert sp["has_financial_data"] is True
+    assert sp["is_demo"] is False
+    assert sp["data"]["health_score"] == own_score
+    assert sp["data"]["health_score"] != 775  # never the canonical demo score
+    print(f"[PASS] Authenticated /calculate -> /summary returns user's OWN score ({own_score})")
 
 def test_credit_health_calculate():
     response = client.post(
@@ -360,17 +398,50 @@ def test_credit_health_calculate():
     assert payload["data"]["health_score"] >= 800
     print(f"[PASS] POST /api/v1/credit-health/calculate passed (Score: {payload['data']['health_score']})")
 
-def test_risk_analysis_persistence():
-    headers_a = {"Authorization": f"Bearer {token_a}"}
-    response = client.get("/api/v1/risk/analysis", headers=headers_a)
+def test_risk_analysis_insufficient_without_profile():
+    """User B has no submitted applicant profile -> must NOT get the canonical demo risk result."""
+    headers_b = {"Authorization": f"Bearer {token_b}"}
+    response = client.get("/api/v1/risk/analysis", headers=headers_b)
     assert response.status_code == 200
     payload = response.json()
-    data = payload["data"]
-    assert data["risk_category"] in ["LOW RISK", "MEDIUM RISK", "HIGH RISK"]
+    assert payload["data"] is None
+    assert payload["data_status"] == "insufficient_data"
+    assert payload["has_financial_data"] is False
+    assert payload["is_demo"] is False
+    print("[PASS] GET /api/v1/risk/analysis returns insufficient_data (no canonical demo probabilities) for real user without profile")
+
+def test_risk_predict_then_analysis_returns_own_prediction():
+    """After an AUTHENTICATED /risk/predict, /risk/analysis returns that user's own persisted prediction."""
+    headers_a = {"Authorization": f"Bearer {token_a}"}
+    pred = client.post(
+        "/api/v1/risk/predict",
+        headers=headers_a,
+        json={
+            "checking_status": "no checking", "duration": 12, "credit_history": "existing paid",
+            "purpose": "furniture/equipment", "credit_amount": 1500.0, "savings_status": ">=1000",
+            "employment": ">=7", "installment_commitment": 1, "personal_status": "male single",
+            "other_parties": "none", "residence_since": 4, "property_magnitude": "real estate",
+            "age": 45, "other_payment_plans": "none", "housing": "own", "existing_credits": 1,
+            "job": "high qualif/self emp/mgmt", "num_dependents": 1, "own_telephone": "yes",
+            "foreign_worker": "no"
+        }
+    )
+    assert pred.status_code == 200
+    assert pred.json()["data_status"] == "ok"
+    own_cat = pred.json()["data"]["risk_category"]
+
+    analysis = client.get("/api/v1/risk/analysis", headers=headers_a)
+    assert analysis.status_code == 200
+    ap = analysis.json()
+    assert ap["data_status"] == "ok"
+    assert ap["has_financial_data"] is True
+    assert ap["is_demo"] is False
+    data = ap["data"]
+    assert data["risk_category"] == own_cat
     prob = data["probability_distribution"]
     assert round(prob["low_risk"] + prob["medium_risk"] + prob["high_risk"], 2) == 1.00
     assert len(data["model_explainability"]) >= 4
-    print(f"[PASS] GET /api/v1/risk/analysis & Prediction Persistence passed ({data['risk_category']}, Confidence: {data['confidence_percentage']}%)")
+    print(f"[PASS] Authenticated /risk/predict -> /risk/analysis returns user's OWN prediction ({own_cat})")
 
 def test_risk_predict():
     response = client.post(
@@ -402,6 +473,110 @@ def test_risk_predict():
     payload = response.json()
     assert payload["data"]["risk_category"] in ["MEDIUM RISK", "HIGH RISK"]
     print(f"[PASS] POST /api/v1/risk/predict passed ({payload['data']['risk_category']})")
+
+def test_brand_new_user_never_sees_demo_or_canonical_data():
+    """A freshly registered real user with ZERO uploads must get explicit no-data everywhere — never demo values."""
+    email = f"fresh.user.{uuid.uuid4().hex[:8]}@example.com"
+    reg = client.post("/api/v1/users/register", json={
+        "email": email, "password": TEST_PASSWORD, "full_name": "Fresh User"
+    })
+    assert reg.status_code == 200
+    tok = reg.json()["data"]["access_token"]
+    assert reg.json()["data"]["user"]["is_demo"] is False
+    h = {"Authorization": f"Bearer {tok}"}
+
+    ch = client.get("/api/v1/credit-health/summary", headers=h).json()
+    assert ch["data"] is None and ch["data_status"] == "no_data" and ch["has_financial_data"] is False
+    assert ch["is_demo"] is False
+
+    rk = client.get("/api/v1/risk/analysis", headers=h).json()
+    assert rk["data"] is None and rk["data_status"] == "insufficient_data" and rk["is_demo"] is False
+
+    sp = client.get("/api/v1/spending/overview", headers=h).json()
+    assert sp["data_status"] == "no_data" and sp["has_financial_data"] is False and sp["is_demo"] is False
+    assert sp["data"]["total_spending_current_month"] == 0
+    assert sp["data"]["categories"] == []
+    assert sp["data"]["total_transactions_count"] == 0
+
+    tx = client.get("/api/v1/transactions", headers=h).json()
+    assert tx["data"]["total_count"] == 0 and tx["data"]["items"] == []
+    assert tx["data_status"] == "no_data"
+
+    st = client.get("/api/v1/statements", headers=h).json()
+    assert st["data"] == [] and st["data_status"] == "no_data"
+    print("[PASS] Brand-new real user gets explicit no-data everywhere (no 775, no demo risk, no demo txns)")
+
+def test_demo_query_param_cannot_leak_demo_data_to_real_user():
+    """A real user appending ?demo=true must NOT receive the demo account's financial data."""
+    email = f"paramtest.{uuid.uuid4().hex[:8]}@example.com"
+    reg = client.post("/api/v1/users/register", json={
+        "email": email, "password": TEST_PASSWORD, "full_name": "Param Test"
+    })
+    tok = reg.json()["data"]["access_token"]
+    h = {"Authorization": f"Bearer {tok}"}
+
+    ch = client.get("/api/v1/credit-health/summary?demo=true", headers=h).json()
+    assert ch["data"] is None and ch["is_demo"] is False and ch["data_status"] in ("no_data", "insufficient_data")
+
+    rk = client.get("/api/v1/risk/analysis?demo=true", headers=h).json()
+    assert rk["data"] is None and rk["is_demo"] is False
+
+    sp = client.get("/api/v1/spending/overview?demo=true", headers=h).json()
+    assert sp["is_demo"] is False and sp["data"]["total_transactions_count"] == 0
+    assert sp["data_status"] == "no_data"
+
+    tx = client.get("/api/v1/transactions?demo=true", headers=h).json()
+    assert tx["data"]["total_count"] == 0 and tx["data"]["items"] == []
+    print("[PASS] ?demo=true is ignored for real users — no demo data leak")
+
+def test_demo_account_still_receives_demo_data():
+    """The seeded demo account must still get the intentional demo dataset (data_status='demo')."""
+    login = client.post("/api/v1/users/login", json={
+        "email": "alex.mercer@fintech.demo", "password": "password123"
+    })
+    assert login.status_code == 200
+    assert login.json()["data"]["user"]["is_demo"] is True
+    dtok = login.json()["data"]["access_token"]
+    h = {"Authorization": f"Bearer {dtok}"}
+
+    ch = client.get("/api/v1/credit-health/summary", headers=h).json()
+    assert ch["is_demo"] is True and ch["data_status"] == "demo"
+    assert 0 <= ch["data"]["health_score"] <= 1000
+
+    rk = client.get("/api/v1/risk/analysis", headers=h).json()
+    assert rk["is_demo"] is True and rk["data_status"] == "demo"
+    assert rk["data"]["risk_category"] in ["LOW RISK", "MEDIUM RISK", "HIGH RISK"]
+
+    sp = client.get("/api/v1/spending/overview", headers=h).json()
+    assert sp["is_demo"] is True and sp["data_status"] == "demo"
+    assert sp["data"]["total_spending_current_month"] > 0
+    print("[PASS] Seeded demo account still receives full demo dataset (data_status='demo')")
+
+def test_copilot_no_data_user_does_not_invent_financials():
+    """Copilot for a fresh real user must not fabricate user-specific figures or use the demo profile."""
+    email = f"copilot.nodata.{uuid.uuid4().hex[:8]}@example.com"
+    reg = client.post("/api/v1/users/register", json={
+        "email": email, "password": TEST_PASSWORD, "full_name": "Copilot NoData"
+    })
+    tok = reg.json()["data"]["access_token"]
+    h = {"Authorization": f"Bearer {tok}"}
+
+    resp = client.post("/api/v1/copilot/query", headers=h, json={
+        "query": "How is my credit health score and what is my utilization?",
+        "include_personal_context": True
+    })
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    text = data["response"].lower()
+    # Must not surface the canonical demo figures
+    for leaked in ["775", "742", "1,70,000", "170000", "68%", "94% on-time", "alex mercer"]:
+        assert leaked.lower() not in text, f"copilot leaked canonical value: {leaked}"
+    assert data.get("personalized_insights", []) == []
+    gs = data.get("grounding_summary", {})
+    assert gs.get("personal_context_used") is False
+    # Should still answer from regulatory knowledge with sources
+    assert len(data["sources"]) >= 1
+    print("[PASS] Copilot for no-data user: no invented financials, no demo profile, regulatory grounding intact")
 
 def test_model_info():
     response = client.get("/api/v1/risk/model-info")
@@ -556,10 +731,16 @@ if __name__ == "__main__":
     test_tenant_isolation_statements()
     test_tenant_isolation_transactions()
     test_user_scoped_spending_overview()
-    test_credit_health_snapshot_persistence()
+    test_credit_health_summary_insufficient_without_profile()
+    test_credit_health_calculate_then_summary_returns_own_score()
     test_credit_health_calculate()
-    test_risk_analysis_persistence()
+    test_risk_analysis_insufficient_without_profile()
+    test_risk_predict_then_analysis_returns_own_prediction()
     test_risk_predict()
+    test_brand_new_user_never_sees_demo_or_canonical_data()
+    test_demo_query_param_cannot_leak_demo_data_to_real_user()
+    test_demo_account_still_receives_demo_data()
+    test_copilot_no_data_user_does_not_invent_financials()
     test_model_info()
     test_rag_knowledge_base_loading()
     test_copilot_query_persistence()

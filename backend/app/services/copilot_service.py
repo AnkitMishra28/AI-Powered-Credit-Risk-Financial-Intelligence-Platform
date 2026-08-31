@@ -6,14 +6,27 @@ from app.schemas.copilot import (
     CopilotQueryRequest,
     CopilotQueryResponse
 )
-from app.rag.models import CopilotQueryRequest as RagQueryRequest
+from app.rag.models import (
+    CopilotQueryRequest as RagQueryRequest,
+    StructuredUserFinancialContext,
+)
 from app.rag.service import rag_copilot_service
 
 class CopilotService:
     @staticmethod
-    def query(request: CopilotQueryRequest, user_id: int = 1, demo: bool = True) -> CopilotQueryResponse:
+    def query(
+        request: CopilotQueryRequest,
+        user_id: int = 1,
+        demo: bool = True,
+        real_user: bool = False,
+        real_user_context: "StructuredUserFinancialContext | None" = None,
+    ) -> CopilotQueryResponse:
         """
         Executes grounded retrieval and synthesis via RAGCopilotService.
+
+        `real_user` / `real_user_context` enforce the demo/real boundary: a real
+        authenticated user is only ever grounded in their own persisted data
+        (or nothing), never the canonical demo profile.
         """
         rag_req = RagQueryRequest(
             query=request.query,
@@ -22,7 +35,13 @@ class CopilotService:
             include_sources=request.include_sources
         )
 
-        res = rag_copilot_service.query(rag_req, user_id=user_id, demo=demo)
+        res = rag_copilot_service.query(
+            rag_req,
+            user_id=user_id,
+            demo=demo,
+            real_user=real_user,
+            real_user_context=real_user_context,
+        )
 
         # Format sources into clean dictionary representation for API response
         sources_payload = [

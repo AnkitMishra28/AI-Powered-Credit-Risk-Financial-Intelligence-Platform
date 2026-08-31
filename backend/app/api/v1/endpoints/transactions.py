@@ -104,11 +104,18 @@ async def list_transactions(
             has_more=(offset + limit) < total_count
         )
 
+        if current_user.is_demo:
+            _status = "demo" if len(db_items) == 0 else "ok"
+        else:
+            _status = "ok" if total_count > 0 else "no_data"
+
         return ApiResponse(
             success=True,
             message="Transactions retrieved successfully",
             data=response_data,
-            is_demo=current_user.is_demo and len(db_items) == 0
+            is_demo=current_user.is_demo and len(db_items) == 0,
+            data_status=_status,
+            has_financial_data=(_status in ("ok", "demo")),
         )
     except Exception as e:
         raise HTTPException(

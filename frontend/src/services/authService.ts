@@ -2,6 +2,11 @@ import { fetchApi, setAuthToken } from "./api";
 import { UserProfile } from "@/types";
 import { DEMO_USER } from "@/lib/demo-data";
 
+// The single seeded demo identity. Demo treatment (offline fallback, demo dataset)
+// is gated on this EXACT address so an arbitrary real email containing "demo"
+// can never be treated as the demo account.
+const DEMO_ACCOUNT_EMAIL = "alex.mercer@fintech.demo";
+
 export interface TokenResponsePayload {
   access_token: string;
   token_type: string;
@@ -17,8 +22,8 @@ export interface TokenResponsePayload {
 
 export const authService = {
   async login(email: string, password?: string): Promise<UserProfile> {
-    const isDemo = email.toLowerCase().includes("demo") && !password;
-    if (isDemo) {
+    const isSeededDemo = email.trim().toLowerCase() === DEMO_ACCOUNT_EMAIL;
+    if (isSeededDemo && !password) {
       setAuthToken("demo_token_alex_mercer");
       return DEMO_USER;
     }
@@ -44,7 +49,8 @@ export const authService = {
         isDemo: result.user.is_demo
       };
     } catch (error) {
-      if (email.toLowerCase().includes("demo")) {
+      // Offline resilience for the portfolio demo ONLY — never for a real account.
+      if (isSeededDemo) {
         setAuthToken("demo_token_alex_mercer");
         return DEMO_USER;
       }

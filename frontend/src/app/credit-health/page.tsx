@@ -9,16 +9,69 @@ import { EducationalDisclaimer } from "@/components/fintech/EducationalDisclaime
 import { useCreditLens } from "@/context/CreditLensContext";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { ErrorState } from "@/components/ui/ErrorState";
 import {
   TrendingUp,
   HelpCircle,
   Sparkles,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  Activity
 } from "lucide-react";
 
 export default function CreditHealthPage() {
-  const { creditHealth } = useCreditLens();
+  const { creditHealth: creditHealthState, refreshData } = useCreditLens();
+  const creditHealth = creditHealthState.data;
+
+  if (creditHealthState.status === "loading") {
+    return (
+      <AppLayout>
+        <PageHeader title="Credit Health Intelligence" subtitle="Loading your CreditLens Health Score…" />
+        <div className="space-y-4">
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-40 w-full" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (creditHealthState.status === "error") {
+    return (
+      <AppLayout>
+        <PageHeader title="Credit Health Intelligence" subtitle="Proprietary CreditLens 0–1000 behavioral health score." />
+        <ErrorState
+          description={creditHealthState.message || undefined}
+          onRetry={() => void refreshData()}
+        />
+      </AppLayout>
+    );
+  }
+
+  if (!creditHealth) {
+    // no_data / insufficient_data — never show a canonical score
+    return (
+      <AppLayout>
+        <PageHeader
+          title="Credit Health Intelligence"
+          subtitle="Proprietary CreditLens 0–1000 behavioral health score and deterministic factor attribution."
+          badge={<Badge variant="slate" size="sm">Not calculated yet</Badge>}
+        />
+        <EmptyState
+          icon={<Activity className="w-7 h-7" />}
+          title="Your Credit Health Score has not been calculated yet"
+          description={
+            creditHealthState.message ||
+            "Complete your credit profile (credit limits, revolving balances, EMIs, payment history) to generate your personalized CreditLens Health Score. Uploading a bank statement adds your cashflow picture."
+          }
+          actionLabel="Go to Statements"
+          actionHref="/statements"
+        />
+        <EducationalDisclaimer />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

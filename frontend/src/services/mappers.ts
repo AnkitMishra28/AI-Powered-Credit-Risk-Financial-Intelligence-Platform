@@ -76,14 +76,14 @@ export function mapRiskAnalysisResponse(
     const rawDist = raw.probability_distribution;
     const probabilityDistribution: ProbabilityDistribution = rawDist
       ? {
-          lowRisk: rawDist.low_risk ?? 0.82,
-          mediumRisk: rawDist.medium_risk ?? 0.14,
-          highRisk: rawDist.high_risk ?? 0.04,
+          lowRisk: rawDist.low_risk ?? 0,
+          mediumRisk: rawDist.medium_risk ?? 0,
+          highRisk: rawDist.high_risk ?? 0,
         }
       : {
-          lowRisk: 0.82,
-          mediumRisk: 0.14,
-          highRisk: 0.04,
+          lowRisk: 0,
+          mediumRisk: 0,
+          highRisk: 0,
         };
 
     const modelExplainability: ShapContribution[] = (
@@ -98,7 +98,7 @@ export function mapRiskAnalysisResponse(
 
     return {
       riskCategory: (raw.risk_category || "LOW RISK") as RiskLevel,
-      confidencePercentage: raw.confidence_percentage ?? 87.0,
+      confidencePercentage: raw.confidence_percentage ?? 0,
       probabilityDistribution,
       topPositiveFactors: raw.top_positive_factors || [],
       riskFactors: raw.risk_factors || [],
@@ -153,10 +153,10 @@ export function mapCreditHealthResponse(
     }));
 
     return {
-      healthScore: raw.health_score ?? 742,
+      healthScore: raw.health_score ?? 0,
       scoreTier: (raw.score_tier || "Healthy") as HealthTier,
-      scoreDelta: raw.score_delta ?? 18,
-      calculationDate: raw.calculation_timestamp || "Mar 2026",
+      scoreDelta: raw.score_delta ?? 0,
+      calculationDate: raw.calculation_timestamp || "",
       factors,
       history,
       disclaimer:

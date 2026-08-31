@@ -1,8 +1,7 @@
-import { fetchApi } from "./api";
+import { fetchApi, fetchSection, DataResult } from "./api";
 import { RiskAnalysisData } from "@/types";
 import { ApiRiskAnalysisData } from "@/types/api";
 import { mapRiskAnalysisResponse } from "./mappers";
-import { DEMO_RISK_ANALYSIS } from "@/lib/demo-data";
 
 export interface RiskPredictParams {
   checking_status?: string;
@@ -36,33 +35,30 @@ export interface ModelInfoResponse {
 }
 
 export const riskService = {
-  async getRiskAnalysis(isDemo: boolean = true): Promise<RiskAnalysisData> {
-    try {
-      const raw = await fetchApi<ApiRiskAnalysisData>(
-        `/risk/analysis?demo=${isDemo}`,
-        { method: "GET" }
-      );
-      return mapRiskAnalysisResponse(raw);
-    } catch {
-      return DEMO_RISK_ANALYSIS;
-    }
+  /**
+   * Returns the authenticated user's risk-analysis state. Ownership is decided
+   * server-side from the JWT identity:
+   *   - demo account            -> status "demo" with the demo applicant result
+   *   - real user w/ a saved prediction -> status "ok" with THEIR result
+   *   - real user w/o one       -> status "insufficient_data", data null
+   * The canonical demo result is never returned to a real user.
+   */
+  async getRiskAnalysis(): Promise<DataResult<RiskAnalysisData>> {
+    return fetchSection<ApiRiskAnalysisData, RiskAnalysisData>(
+      "/risk/analysis",
+      mapRiskAnalysisResponse
+    );
   },
 
   async predictRisk(params: RiskPredictParams): Promise<RiskAnalysisData> {
-    const raw = await fetchApi<ApiRiskAnalysisData>(
-      "/risk/predict",
-      {
-        method: "POST",
-        body: JSON.stringify(params),
-      }
-    );
+    const raw = await fetchApi<ApiRiskAnalysisData>("/risk/predict", {
+      method: "POST",
+      body: JSON.stringify(params),
+    });
     return mapRiskAnalysisResponse(raw);
   },
 
   async getModelInfo(): Promise<ModelInfoResponse> {
-    return await fetchApi<ModelInfoResponse>(
-      "/risk/model-info",
-      { method: "GET" }
-    );
-  }
+    return await fetchApi<ModelInfoResponse>("/risk/model-info", { method: "GET" });
+  },
 };

@@ -8,6 +8,7 @@ import { SourceCitationPanel } from "@/components/fintech/SourceCitationPanel";
 import { EducationalDisclaimer } from "@/components/fintech/EducationalDisclaimer";
 import { CitationSource, GroundingFact } from "@/types";
 import { INITIAL_COPILOT_MESSAGES } from "@/lib/demo-data";
+import { useAuth } from "@/context/AuthContext";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import {
@@ -18,49 +19,51 @@ import {
 } from "lucide-react";
 import { SUGGESTED_COPILOT_QUESTIONS } from "@/lib/constants";
 
+// Synthetic priming used ONLY for the demo session. Real users start with a blank
+// workspace so the copilot never appears to "know" fabricated personal figures.
+const DEMO_SOURCES: CitationSource[] = [
+  {
+    id: "src-rbi-01",
+    title: "RBI Master Direction – Credit Card & Debit Card Issuance (2022)",
+    publisher: "Reserve Bank of India (RBI)",
+    docType: "Regulatory Guideline",
+    excerpt: "Clause 8(b): Card issuers shall explicitly inform the cardholder of the implications of paying only the minimum amount due, including the compounding interest burden and time required to liquidate the full outstanding amount.",
+    url: "https://www.rbi.org.in",
+    relevanceScore: 0.96,
+  },
+  {
+    id: "src-edu-02",
+    title: "Credit Utilization & Revolving Balance Optimization Handbook",
+    publisher: "CreditLens Financial Intelligence Framework",
+    docType: "Financial Education Guide",
+    excerpt: "Maintaining aggregate revolving credit utilization below 30% of authorized limits is historically correlated with lower default risk and faster score recovery.",
+    url: "https://www.rbi.org.in",
+    relevanceScore: 0.92,
+  },
+];
+
+const DEMO_GROUNDING_FACTS: GroundingFact[] = [
+  { label: "Revolving Utilization", value: "68% (₹1,70,000 / ₹2,50,000)" },
+  { label: "Payment Consistency", value: "94% on-time index" },
+  { label: "Current Monthly Spend", value: "₹49,230" },
+  { label: "Net Monthly Income", value: "₹65,000" },
+];
+
+const DEMO_PAST_SESSIONS = [
+  { title: "Minimum Payment Trap Analysis", date: "Today" },
+  { title: "Dining Anomaly & Cashflow Impact", date: "Yesterday" },
+  { title: "Score Recovery to 800+ Plan", date: "Mar 24" },
+];
+
 export default function CopilotPage() {
-  const [sources, setSources] = useState<CitationSource[]>([
-    {
-      id: "src-rbi-01",
-      title: "RBI Master Direction – Credit Card & Debit Card Issuance (2022)",
-      publisher: "Reserve Bank of India (RBI)",
-      docType: "Regulatory Guideline",
-      excerpt: "Clause 8(b): Card issuers shall explicitly inform the cardholder of the implications of paying only the minimum amount due, including the compounding interest burden and time required to liquidate the full outstanding amount.",
-      url: "https://www.rbi.org.in",
-      relevanceScore: 0.96
-    },
-    {
-      id: "src-edu-02",
-      title: "Credit Utilization & Revolving Balance Optimization Handbook",
-      publisher: "CreditLens Financial Intelligence Framework",
-      docType: "Financial Education Guide",
-      excerpt: "Maintaining aggregate revolving credit utilization below 30% of authorized limits is historically correlated with lower default risk and faster score recovery.",
-      url: "https://www.rbi.org.in",
-      relevanceScore: 0.92
-    },
-    {
-      id: "src-terms-03",
-      title: "Consumer Credit APR & Grace Period Disclosure Standard",
-      publisher: "National Financial Educators Council",
-      docType: "Credit Terms Standard",
-      excerpt: "Carrying unpaid revolving balances month-over-month revokes the interest-free grace period on subsequent purchases, subjecting all new charges to daily APR from the transaction date.",
-      url: "https://www.rbi.org.in",
-      relevanceScore: 0.88
-    }
-  ]);
+  const { isDemoMode } = useAuth();
 
-  const [groundingFacts, setGroundingFacts] = useState<GroundingFact[]>([
-    { label: "Revolving Utilization", value: "68% (₹1,70,000 / ₹2,50,000)" },
-    { label: "Payment Consistency", value: "94% on-time index" },
-    { label: "Current Monthly Spend", value: "₹49,230" },
-    { label: "Net Monthly Income", value: "₹65,000" },
-  ]);
+  const [sources, setSources] = useState<CitationSource[]>(isDemoMode ? DEMO_SOURCES : []);
+  const [groundingFacts, setGroundingFacts] = useState<GroundingFact[]>(
+    isDemoMode ? DEMO_GROUNDING_FACTS : []
+  );
 
-  const PAST_SESSIONS = [
-    { title: "Minimum Payment Trap Analysis", date: "Today" },
-    { title: "Dining Anomaly & Cashflow Impact", date: "Yesterday" },
-    { title: "Score Recovery to 800+ Plan", date: "Mar 24" },
-  ];
+  const PAST_SESSIONS = isDemoMode ? DEMO_PAST_SESSIONS : [];
 
   return (
     <AppLayout>
@@ -85,7 +88,9 @@ export default function CopilotPage() {
               <span className="text-xs font-bold uppercase tracking-wider text-neutral-200">Live Grounding Matrix</span>
             </div>
             <p className="text-xs text-neutral-400 mb-3 leading-relaxed">
-              The AI copilot synthesizes these exact figures calculated by the deterministic pipeline.
+              {groundingFacts.length > 0
+                ? "The AI copilot synthesizes these exact figures calculated by the deterministic pipeline."
+                : "No personal metrics yet. Analyze your financial data to ground answers in your own numbers — until then the copilot answers only from verified regulatory sources."}
             </p>
             <div className="space-y-2">
               {groundingFacts.map((f, idx) => (
@@ -143,7 +148,7 @@ export default function CopilotPage() {
         {/* Center Column (6 cols): Main Dominant Conversation Canvas */}
         <div className="lg:col-span-6">
           <CopilotChat
-            initialMessages={INITIAL_COPILOT_MESSAGES}
+            initialMessages={isDemoMode ? INITIAL_COPILOT_MESSAGES : []}
             onSourcesUpdated={(newSources) => setSources(newSources)}
             onFactsUpdated={(newFacts) => setGroundingFacts(newFacts)}
           />

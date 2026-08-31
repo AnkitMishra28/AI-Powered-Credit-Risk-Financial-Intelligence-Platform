@@ -1,8 +1,7 @@
-import { fetchApi } from "./api";
+import { fetchApi, fetchSection, DataResult } from "./api";
 import { CreditHealthData } from "@/types";
 import { ApiCreditHealthData } from "@/types/api";
 import { mapCreditHealthResponse } from "./mappers";
-import { DEMO_CREDIT_HEALTH } from "@/lib/demo-data";
 
 export interface CreditHealthCalculateParams {
   monthly_income: number;
@@ -16,26 +15,26 @@ export interface CreditHealthCalculateParams {
 }
 
 export const creditService = {
-  async getCreditHealthSummary(isDemo: boolean = true): Promise<CreditHealthData> {
-    try {
-      const raw = await fetchApi<ApiCreditHealthData>(
-        `/credit-health/summary?demo=${isDemo}`,
-        { method: "GET" }
-      );
-      return mapCreditHealthResponse(raw);
-    } catch {
-      return DEMO_CREDIT_HEALTH;
-    }
+  /**
+   * Returns the authenticated user's Credit Health state. The backend decides
+   * ownership from the JWT identity:
+   *   - demo account   -> status "demo" with the demo profile
+   *   - real user w/ a saved score -> status "ok" with THEIR score
+   *   - real user w/o a saved score -> status "no_data" / "insufficient_data", data null
+   * A canonical/demo score is never returned to a real user.
+   */
+  async getCreditHealthSummary(): Promise<DataResult<CreditHealthData>> {
+    return fetchSection<ApiCreditHealthData, CreditHealthData>(
+      "/credit-health/summary",
+      mapCreditHealthResponse
+    );
   },
 
   async calculateCreditHealth(params: CreditHealthCalculateParams): Promise<CreditHealthData> {
-    const raw = await fetchApi<ApiCreditHealthData>(
-      "/credit-health/calculate",
-      {
-        method: "POST",
-        body: JSON.stringify(params),
-      }
-    );
+    const raw = await fetchApi<ApiCreditHealthData>("/credit-health/calculate", {
+      method: "POST",
+      body: JSON.stringify(params),
+    });
     return mapCreditHealthResponse(raw);
-  }
+  },
 };
