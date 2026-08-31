@@ -58,8 +58,8 @@ export default function OnboardingPage() {
     }
   };
 
-  const handleDemoPreset = () => {
-    loginAsDemo();
+  const handleDemoPreset = async () => {
+    await loginAsDemo();
     router.push("/dashboard");
   };
 

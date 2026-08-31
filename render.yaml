@@ -18,6 +18,9 @@ services:
         sync: false
       - key: JWT_SECRET_KEY
         generateValue: true
+      # Comma-separated list of allowed frontend origins, e.g.
+      # https://ai-powered-credit-risk-financial-in.vercel.app
+      # The app also accepts this value under the name CORS_ORIGINS.
       - key: BACKEND_CORS_ORIGINS
         sync: false
       - key: GEMINI_API_KEY

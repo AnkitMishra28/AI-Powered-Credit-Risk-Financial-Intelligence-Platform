@@ -1,4 +1,40 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+/**
+ * Resolves the backend API base URL.
+ *
+ * The FastAPI backend mounts every route under `settings.API_V1_STR` (`/api/v1`),
+ * so the effective base URL must always end with that segment. A very common
+ * deployment mistake (and the cause of production 404s on Render) is setting
+ * `NEXT_PUBLIC_API_URL` to the bare backend host, e.g.
+ * `https://xxx.onrender.com`, which makes calls resolve to
+ * `https://xxx.onrender.com/users/register` instead of
+ * `https://xxx.onrender.com/api/v1/users/register`.
+ *
+ * This normalizer keeps the intended architecture (direct Vercel -> Render calls)
+ * but is tolerant of either form:
+ *   - `https://xxx.onrender.com`         -> `https://xxx.onrender.com/api/v1`
+ *   - `https://xxx.onrender.com/api/v1`  -> unchanged
+ *   - `https://xxx.onrender.com/api/v1/` -> `https://xxx.onrender.com/api/v1`
+ *   - `/api/v1` (same-origin / proxy)    -> unchanged
+ *   - `http://localhost:8000/api/v1`     -> unchanged
+ */
+function resolveApiBaseUrl(): string {
+  const raw = (process.env.NEXT_PUBLIC_API_URL || "/api/v1").trim();
+  const withoutTrailingSlash = raw.replace(/\/+$/, "");
+  if (!withoutTrailingSlash) {
+    return "/api/v1";
+  }
+  // Already targets a versioned API base (e.g. /api/v1, /api/v2) — leave as-is.
+  if (/\/api\/v\d+$/.test(withoutTrailingSlash)) {
+    return withoutTrailingSlash;
+  }
+  // Any other explicit `/api/...` mount is respected as configured.
+  if (/\/api(\/|$)/.test(withoutTrailingSlash)) {
+    return withoutTrailingSlash;
+  }
+  return `${withoutTrailingSlash}/api/v1`;
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 export interface ApiResponse<T> {
   success: boolean;

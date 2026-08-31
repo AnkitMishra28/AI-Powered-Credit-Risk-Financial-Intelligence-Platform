@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { UserProfile } from "@/types";
 import { DEMO_USER } from "@/lib/demo-data";
 import { authService } from "@/services/authService";
-import { getAuthToken } from "@/services/api";
+import { getAuthToken, setAuthToken } from "@/services/api";
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -12,7 +12,7 @@ interface AuthContextType {
   isDemoMode: boolean;
   login: (email: string, password?: string) => Promise<void>;
   register: (email: string, fullName: string, password?: string) => Promise<void>;
-  loginAsDemo: () => void;
+  loginAsDemo: () => Promise<void>;
   logout: () => void;
   toggleDemoMode: () => void;
 }
@@ -84,12 +84,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const loginAsDemo = () => {
-    setUser(DEMO_USER);
+  const loginAsDemo = async () => {
+    // Prefer a real backend session for the seeded demo analyst account so that
+    // demo dashboards are served by the live API (spending / credit-health / risk
+    // all honour `demo=true` for this user). authService.login already falls back
+    // to an offline demo token + bundled dataset if the backend is unreachable.
+    let demoUser = DEMO_USER;
+    try {
+      demoUser = await authService.login("alex.mercer@fintech.demo", "password123");
+    } catch {
+      setAuthToken("demo_token_alex_mercer");
+      demoUser = DEMO_USER;
+    }
+    setUser(demoUser);
     setIsDemoMode(true);
     if (typeof window !== "undefined") {
-      localStorage.setItem("creditlens_user", JSON.stringify(DEMO_USER));
-      localStorage.setItem("creditlens_token", "demo_token_alex_mercer");
+      localStorage.setItem("creditlens_user", JSON.stringify(demoUser));
     }
   };
 

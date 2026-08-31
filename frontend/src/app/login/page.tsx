@@ -38,9 +38,14 @@ export default function LoginPage() {
     }
   };
 
-  const handleDemoClick = () => {
-    loginAsDemo();
-    router.push("/dashboard");
+  const handleDemoClick = async () => {
+    setIsLoading(true);
+    try {
+      await loginAsDemo();
+      router.push("/dashboard");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

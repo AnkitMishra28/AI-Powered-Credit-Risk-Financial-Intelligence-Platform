@@ -68,7 +68,7 @@ The standard production deployment topology for CreditLens decouples the fronten
 | `ENVIRONMENT` | **Yes** | Enables production security mode and fail-fast checks | `production` |
 | `DATABASE_URL` | **Yes** | Neon/PostgreSQL asyncpg connection URI | `postgresql+asyncpg://user:pass@ep-xyz.neon.tech/creditlens` |
 | `JWT_SECRET_KEY` | **Yes** | 32+ character cryptographically secure random string | `e8f4c92b71...` (generate via `openssl rand -hex 32`) |
-| `BACKEND_CORS_ORIGINS` | **Yes** | Comma-separated list of allowed frontend origins | `https://creditlens.vercel.app` |
+| `BACKEND_CORS_ORIGINS` | **Yes** | Comma-separated list of allowed frontend origins (also accepted as `CORS_ORIGINS`) | `https://ai-powered-credit-risk-financial-in.vercel.app` |
 | `LOG_LEVEL` | No | Logging verbosity (INFO, DEBUG, WARNING) | `INFO` |
 | `GEMINI_API_KEY` | No | Google AI Studio API key for live LLM synthesis | `AIzaSy...` (falls back to deterministic RAG if omitted) |
 | `RATE_LIMIT_ENABLED` | No | Enables sliding-window rate limiting on auth & copilot | `true` |
@@ -88,9 +88,17 @@ The standard production deployment topology for CreditLens decouples the fronten
 
 | Variable | Required | Description | Example |
 | :--- | :--- | :--- | :--- |
-| `NEXT_PUBLIC_API_URL` | **Yes** | Full URL to the deployed Render backend API | `https://creditlens-api.onrender.com/api/v1` |
+| `NEXT_PUBLIC_API_URL` | **Yes** | Full URL to the deployed Render backend API — **must end with `/api/v1`** | `https://ai-powered-credit-risk-financial.onrender.com/api/v1` |
 
-5. Deploy the project. Update the Render backend `BACKEND_CORS_ORIGINS` setting to include your finalized Vercel deployment domain.
+> ⚠️ **The `/api/v1` suffix is mandatory.** Every backend route is mounted under
+> `settings.API_V1_STR` (`/api/v1`). If `NEXT_PUBLIC_API_URL` is set to the bare
+> Render host (`https://<service>.onrender.com`), all API calls resolve to paths
+> like `/users/register` and return **HTTP 404 Not Found**. As a safety net the
+> frontend API client (`src/services/api.ts`) auto-appends `/api/v1` when the
+> configured value has no `/api/...` path, but the env var should still be set
+> correctly.
+
+5. Deploy the project. Update the Render backend `BACKEND_CORS_ORIGINS` (or `CORS_ORIGINS`) setting to include your finalized Vercel deployment domain.
 
 ---
 
@@ -244,6 +252,35 @@ curl -i http://localhost:8000/api/v1/health/ready
    - **Security Protections**: Null-byte and directory traversal sanitization (`../`), and executable binary header rejection (`MZ`, `\x7fELF`, Mach-O).
    - **Current Limitation**: Scanned image PDFs requiring Optical Character Recognition (OCR) are **not supported** in this release.
 5. **Prompt Injection & Safety Guardrails**: LLM queries pass through adversarial prompt checks (`ignore previous`, `developer mode`, `system prompt`) and out-of-scope domain filters before dispatching. When Gemini API is unconfigured or unavailable, the system transparently utilizes a deterministic grounded RAG synthesis engine.
+
+---
+
+## 🩺 Troubleshooting
+
+### Frontend shows `Not Found` / `Failed to fetch` for every API call (HTTP 404)
+
+**Cause:** `NEXT_PUBLIC_API_URL` on Vercel points at the bare backend host without
+the `/api/v1` path segment, so requests hit `https://<host>/users/register`
+instead of `https://<host>/api/v1/users/register`.
+
+**Fix:** Set `NEXT_PUBLIC_API_URL=https://<service>.onrender.com/api/v1` in the
+Vercel project settings and redeploy. (The frontend client also auto-appends
+`/api/v1` defensively, so a redeploy alone will resolve it.)
+
+**Verify:** In production `GET /` returns `{"status":"operational"}`, and
+`GET /api/v1/health/live` returns `{"status":"alive"}`. `/docs` and
+`/openapi.json` are intentionally disabled when `ENVIRONMENT=production`
+(`/api/v1/docs` is available in non-production).
+
+### Preflight (CORS) errors after the 404 is fixed
+
+**Cause:** the allowed-origins env var is unset or does not contain the exact
+Vercel origin.
+
+**Fix:** Set `BACKEND_CORS_ORIGINS` **or** `CORS_ORIGINS` on Render to a
+comma-separated list that includes `https://<your-app>.vercel.app` (no trailing
+slash). Wildcard `*` is rejected in production because the API uses bearer
+tokens.
 
 ---
 

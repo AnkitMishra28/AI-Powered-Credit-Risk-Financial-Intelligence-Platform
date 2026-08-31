@@ -101,8 +101,8 @@ export default function RiskAnalysisPage() {
             <span>ML Pipeline Architecture Specifications</span>
           </div>
           <p className="text-neutral-400 leading-relaxed text-xs">
-            This analytical view connects directly to our containerized <strong>FastAPI + Scikit-Learn / XGBoost</strong> pipeline. 
-            Normalized statement transactions and credit lines are evaluated against gradient boosted trees to compute multi-class probabilities and exact TreeSHAP waterfall values.
+            This analytical view connects directly to our containerized <strong>FastAPI + Scikit-Learn / XGBoost</strong> pipeline.
+            An applicant credit profile is evaluated against gradient boosted trees trained on the public (South) German Credit benchmark dataset to compute multi-class probabilities and exact TreeSHAP waterfall values. It is an educational risk model, not a bureau or underwriting decision.
           </p>
         </Card>
       </div>

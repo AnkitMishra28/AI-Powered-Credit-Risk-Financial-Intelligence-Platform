@@ -4,7 +4,7 @@ Provides Pydantic Settings with environment separation, CORS parsing, secret val
 and fail-fast production security guarantees.
 """
 from typing import List, Optional, Union
-from pydantic import Field, field_validator, model_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import json
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
@@ -72,10 +72,15 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
     # CORS Allowed Origins
-    BACKEND_CORS_ORIGINS: Union[List[str], str] = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ]
+    # Accepts either env var name: BACKEND_CORS_ORIGINS (canonical) or CORS_ORIGINS (alias).
+    # Value may be a comma-separated string ("https://a.com,https://b.com") or a JSON array.
+    BACKEND_CORS_ORIGINS: Union[List[str], str] = Field(
+        default=[
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ],
+        validation_alias=AliasChoices("BACKEND_CORS_ORIGINS", "CORS_ORIGINS"),
+    )
 
     # Database Configuration (PostgreSQL / SQLite fallback)
     POSTGRES_SERVER: str = "localhost"
