@@ -127,6 +127,28 @@ async def calculate_custom_credit_health(
                 }
                 for f in data.factors
             ]
+            _limit = request.credit_limit_total or 0.0
+            _balance = request.revolving_balance_total or 0.0
+            _income = request.monthly_income or 0.0
+            _emi = request.total_monthly_emi or 0.0
+            # Track which fields the client actually supplied vs. which are pydantic
+            # defaults, so the Copilot never presents a model default (e.g. the
+            # 0.90 payment-consistency assumption) as if the user reported it.
+            _provided = sorted(request.model_dump(exclude_unset=True).keys())
+            profile_inputs = {
+                "monthly_income": _income,
+                "credit_limit_total": _limit,
+                "revolving_balance_total": _balance,
+                "total_monthly_emi": _emi,
+                "payment_consistency_ratio": request.payment_consistency_ratio,
+                "credit_history_years": request.credit_history_years,
+                "monthly_spending_total": request.monthly_spending_total,
+                "spending_average_6mo": request.spending_average_6mo,
+                # Derived, stored for convenience (never a placeholder — computed from the inputs above)
+                "credit_utilization_pct": round((_balance / _limit) * 100, 1) if _limit > 0 else None,
+                "debt_to_income_pct": round((_emi / _income) * 100, 1) if _income > 0 else None,
+                "_provided_fields": _provided,
+            }
             await credit_health_repo.save_snapshot(
                 session=session,
                 user_id=current_user.id,
@@ -139,7 +161,8 @@ async def calculate_custom_credit_health(
                 tenure_score=data.factors[3].score if len(data.factors) > 3 else 90.0,
                 spending_stability_score=data.factors[4].score if len(data.factors) > 4 else 90.0,
                 factors=factor_dicts,
-                disclaimer=data.disclaimer
+                disclaimer=data.disclaimer,
+                profile_inputs=profile_inputs,
             )
 
         return ApiResponse(

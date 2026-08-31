@@ -1,6 +1,17 @@
 # ==============================================================================
-# CreditLens Render Infrastructure Blueprint (render.yaml)
-# Enables one-click Blueprint deployment for the FastAPI backend service
+# CreditLens — Render Blueprint (Infrastructure as Code)
+#
+# A push to the connected branch triggers an automatic redeploy:
+#   1. buildCommand      installs Python dependencies
+#   2. startCommand      runs `alembic upgrade head` (idempotent & non-destructive
+#                        for a fresh DB, an unstamped create_all() DB, or a DB
+#                        already at head — see backend/alembic/versions/*), then
+#                        starts Uvicorn on Render's $PORT
+#   3. healthCheckPath   gates the deploy on /api/v1/health/live returning 200
+#
+# No manual `alembic` run, DB stamping, or post-deploy step is required.
+# numInstances is pinned to 1 so the migration step never races itself; the
+# migrations are still safe to run concurrently, this just keeps logs clean.
 # ==============================================================================
 
 services:
@@ -8,21 +19,37 @@ services:
     name: creditlens-api
     runtime: python
     rootDir: backend
+    # Keep a single instance so the `alembic upgrade head` in startCommand never
+    # races another booting instance. (The migrations are concurrency-safe
+    # regardless; this just keeps deploy logs clean.)
+    numInstances: 1
+    autoDeploy: true
     buildCommand: pip install -r requirements.txt
     startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/v1/health/live
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
       - key: ENVIRONMENT
         value: production
+      # Neon / Postgres connection string. `postgres://`, `postgresql://` and
+      # `?sslmode=require` are normalised to asyncpg automatically at runtime.
       - key: DATABASE_URL
         sync: false
+      # Auto-generated 32-byte secret on first provision; never printed.
       - key: JWT_SECRET_KEY
         generateValue: true
-      # Comma-separated list of allowed frontend origins, e.g.
-      # https://ai-powered-credit-risk-financial-in.vercel.app
-      # The app also accepts this value under the name CORS_ORIGINS.
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "10080"
+      # Explicit allow-list of frontend origins (comma-separated). The app ALSO
+      # accepts any https://*.vercel.app via BACKEND_CORS_ORIGIN_REGEX below, so
+      # this only needs your final custom domains, if any.
       - key: BACKEND_CORS_ORIGINS
-        sync: false
+        value: https://ai-powered-credit-risk-financial-in.vercel.app,http://localhost:3000
+      - key: BACKEND_CORS_ORIGIN_REGEX
+        value: https://([a-z0-9-]+\.)*vercel\.app
+      # Optional: real Gemini synthesis. Without it the Copilot uses the
+      # deterministic grounded-RAG engine (no fabricated personal numbers).
       - key: GEMINI_API_KEY
         sync: false
       - key: LOG_LEVEL

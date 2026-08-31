@@ -13,6 +13,7 @@ interface AuthContextType {
   login: (email: string, password?: string) => Promise<void>;
   register: (email: string, fullName: string, password?: string) => Promise<void>;
   loginAsDemo: () => Promise<void>;
+  updateProfile: (fields: { fullName?: string; designation?: string }) => Promise<void>;
   logout: () => void;
   toggleDemoMode: () => void;
 }
@@ -97,8 +98,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateProfile = async (fields: { fullName?: string; designation?: string }) => {
+    const updated = await authService.updateProfile(fields);
+    setUser(updated);
+    setIsDemoMode(updated.isDemo);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("creditlens_user", JSON.stringify(updated));
+    }
+  };
+
   const logout = () => {
-    authService.logout();
+    // Clear local auth state immediately so the UI never blocks on the network;
+    // the (idempotent) server call happens in the background.
+    void authService.logout();
     setUser(null);
     setIsDemoMode(false);
     if (typeof window !== "undefined") {
@@ -120,6 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         register,
         loginAsDemo,
+        updateProfile,
         logout,
         toggleDemoMode,
       }}

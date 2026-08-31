@@ -21,7 +21,8 @@ class CreditHealthRepository:
         tenure_score: float,
         spending_stability_score: float,
         factors: Optional[List[Dict[str, Any]]] = None,
-        disclaimer: str = "Educational credit health diagnostic. CreditLens is not a credit bureau."
+        disclaimer: str = "Educational credit health diagnostic. CreditLens is not a credit bureau.",
+        profile_inputs: Optional[Dict[str, Any]] = None,
     ) -> CreditHealthSnapshot:
         snapshot = CreditHealthSnapshot(
             user_id=user_id,
@@ -34,7 +35,8 @@ class CreditHealthRepository:
             tenure_score=tenure_score,
             spending_stability_score=spending_stability_score,
             factors=factors,
-            disclaimer=disclaimer
+            disclaimer=disclaimer,
+            profile_inputs=profile_inputs,
         )
         session.add(snapshot)
         await session.commit()

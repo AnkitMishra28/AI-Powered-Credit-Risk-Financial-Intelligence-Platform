@@ -97,7 +97,11 @@ export function mapRiskAnalysisResponse(
     }));
 
     return {
-      riskCategory: (raw.risk_category || "LOW RISK") as RiskLevel,
+      // The backend always sends risk_category on a real result and fetchSection
+      // only maps "ok"/"demo" payloads, so this default is unreachable in
+      // practice. If it is ever hit the response is malformed — fall back to the
+      // NON-reassuring middle category rather than fabricating "LOW RISK".
+      riskCategory: (raw.risk_category || "MEDIUM RISK") as RiskLevel,
       confidencePercentage: raw.confidence_percentage ?? 0,
       probabilityDistribution,
       topPositiveFactors: raw.top_positive_factors || [],

@@ -23,9 +23,12 @@ export const LEGAL_DISCLAIMERS = {
   DEMO_MODE_NOTICE: "Demo Profile Active — All financial figures, transactions, and score metrics represent synthetic data for demonstration purposes.",
 };
 
+// Generic, non-personalized prompts. These are shown to every visitor — including
+// brand-new accounts with no analyzed data — so they must not imply the user
+// already has specific figures (utilization %, spending deltas, a score).
 export const SUGGESTED_COPILOT_QUESTIONS = [
   "What happens if I only pay the minimum amount on my credit card?",
-  "Why is my revolving credit utilization at 68% and how do I reduce it?",
-  "What factors are having the biggest positive impact on my risk rating?",
-  "Explain my 31% dining spending increase vs my 3-month average",
+  "How is revolving credit utilization calculated and why does it matter?",
+  "What factors drive the CreditLens Credit Health Score?",
+  "How does CreditLens detect spending anomalies against a rolling baseline?",
 ];

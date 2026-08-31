@@ -46,7 +46,20 @@ The standard production deployment topology for CreditLens decouples the fronten
    postgresql://<user>:<password>@<ep-identifier>.us-east-2.aws.neon.tech/creditlens?sslmode=require
    ```
 3. CreditLens automatically transforms `postgres://` or `postgresql://` connection strings into `postgresql+asyncpg://` at runtime.
-4. Schema tables and the initial demo analyst user (`alex.mercer@fintech.demo`) are automatically initialized on application startup via `init_db()` or via explicit Alembic migration (`alembic upgrade head`).
+4. **Schema is applied automatically on every deploy.** The Render start command
+   runs `alembic upgrade head` before Uvicorn starts. The migration chain is
+   **idempotent and non-destructive** — every `CREATE`/`ADD COLUMN` is guarded by
+   a live-schema check — so it is safe against any starting state:
+   * a brand-new empty database  → all tables/columns created, stamped at head
+   * a database whose schema was created by an earlier `create_all()` and was
+     **never stamped** → each step is skipped, a fresh `alembic_version` row is
+     written, and only the genuinely missing columns (`users.designation`,
+     `credit_health_snapshots.profile_inputs`) are added — **no table is dropped,
+     no row is touched**
+   * a database already at head → no-op
+   You never need to run `alembic` by hand, `alembic stamp`, or edit the schema
+   after deploying. (`init_db()` also runs `create_all()` on startup as a
+   belt-and-braces safety net; it only ever creates missing tables.)
 
 ---
 
@@ -68,7 +81,8 @@ The standard production deployment topology for CreditLens decouples the fronten
 | `ENVIRONMENT` | **Yes** | Enables production security mode and fail-fast checks | `production` |
 | `DATABASE_URL` | **Yes** | Neon/PostgreSQL asyncpg connection URI | `postgresql+asyncpg://user:pass@ep-xyz.neon.tech/creditlens` |
 | `JWT_SECRET_KEY` | **Yes** | 32+ character cryptographically secure random string | `e8f4c92b71...` (generate via `openssl rand -hex 32`) |
-| `BACKEND_CORS_ORIGINS` | **Yes** | Comma-separated list of allowed frontend origins (also accepted as `CORS_ORIGINS`) | `https://ai-powered-credit-risk-financial-in.vercel.app` |
+| `BACKEND_CORS_ORIGINS` | No* | Comma-separated allow-list of frontend origins (also accepted as `CORS_ORIGINS`). *Optional because the app also accepts any `https://*.vercel.app` origin via `BACKEND_CORS_ORIGIN_REGEX` (default), and the known production Vercel origin is a built-in default. Set it to lock the API to your own domains. | `https://ai-powered-credit-risk-financial-in.vercel.app,http://localhost:3000` |
+| `BACKEND_CORS_ORIGIN_REGEX` | No | Regex matched against `Origin` in addition to the allow-list. Defaults to `https://([a-z0-9-]+\.)*vercel\.app` so every Vercel production/preview/branch URL works with zero configuration. Never `*`. | `https://([a-z0-9-]+\.)*vercel\.app` |
 | `LOG_LEVEL` | No | Logging verbosity (INFO, DEBUG, WARNING) | `INFO` |
 | `GEMINI_API_KEY` | No | Google AI Studio API key for live LLM synthesis | `AIzaSy...` (falls back to deterministic RAG if omitted) |
 | `RATE_LIMIT_ENABLED` | No | Enables sliding-window rate limiting on auth & copilot | `true` |
@@ -88,7 +102,7 @@ The standard production deployment topology for CreditLens decouples the fronten
 
 | Variable | Required | Description | Example |
 | :--- | :--- | :--- | :--- |
-| `NEXT_PUBLIC_API_URL` | **Yes** | Full URL to the deployed Render backend API — **must end with `/api/v1`** | `https://ai-powered-credit-risk-financial.onrender.com/api/v1` |
+| `NEXT_PUBLIC_API_URL` | No* | Full URL to the deployed Render backend API — **should end with `/api/v1`** (the client auto-appends it if missing). *Optional: when unset, a deployed browser build falls back to the known Render API URL (`https://ai-powered-credit-risk-financial.onrender.com/api/v1`); set it explicitly if your backend URL differs. | `https://ai-powered-credit-risk-financial.onrender.com/api/v1` |
 
 > ⚠️ **The `/api/v1` suffix is mandatory.** Every backend route is mounted under
 > `settings.API_V1_STR` (`/api/v1`). If `NEXT_PUBLIC_API_URL` is set to the bare

@@ -47,32 +47,59 @@ class RetrievalResult(BaseModel):
     relevance_grade: str = "high" # "high", "medium", "low"
 
 class StructuredUserFinancialContext(BaseModel):
+    """
+    Grounding context for the Copilot. For the demo session every field is
+    populated from the canonical demo profile. For a REAL user it is built
+    strictly from that user's own persisted data, so any field CreditLens has
+    not actually computed/persisted for them stays None and must not be invented
+    downstream.
+    """
     # Credit Health & Deterministic Metrics
-    health_score: int
-    score_tier: str
-    payment_consistency_pct: float
-    credit_utilization_pct: float
-    revolving_balance: float
-    credit_limit_total: float
-    debt_to_income_pct: float
-    credit_history_years: float
-    spending_stability_pct: float
-    
+    health_score: Optional[int] = None
+    score_tier: Optional[str] = None
+    payment_consistency_pct: Optional[float] = None
+    credit_utilization_pct: Optional[float] = None
+    revolving_balance: Optional[float] = None
+    credit_limit_total: Optional[float] = None
+    debt_to_income_pct: Optional[float] = None
+    credit_history_years: Optional[float] = None
+    spending_stability_pct: Optional[float] = None
+
     # ML Risk Assessment
-    risk_category: str
-    risk_probability_pct: float
-    top_positive_factors: List[str]
-    risk_watch_factors: List[str]
-    
+    risk_category: Optional[str] = None
+    risk_probability_pct: Optional[float] = None
+    top_positive_factors: List[str] = Field(default_factory=list)
+    risk_watch_factors: List[str] = Field(default_factory=list)
+
     # Cashflow & Spending
-    monthly_income: float
-    monthly_spending: float
-    net_cashflow: float
-    discretionary_spending: float
-    essential_spending: float
-    top_spending_categories: List[str]
-    recent_anomalies: List[str]
-    active_subscriptions: List[str]
+    monthly_income: Optional[float] = None
+    monthly_spending: Optional[float] = None
+    net_cashflow: Optional[float] = None
+    discretionary_spending: Optional[float] = None
+    essential_spending: Optional[float] = None
+    top_spending_categories: List[str] = Field(default_factory=list)
+    recent_anomalies: List[str] = Field(default_factory=list)
+    active_subscriptions: List[str] = Field(default_factory=list)
+
+    @property
+    def has_credit_health(self) -> bool:
+        return self.health_score is not None
+
+    @property
+    def has_utilization(self) -> bool:
+        return (
+            self.credit_utilization_pct is not None
+            and self.revolving_balance is not None
+            and self.credit_limit_total is not None
+        )
+
+    @property
+    def has_risk(self) -> bool:
+        return self.risk_category is not None
+
+    @property
+    def has_cashflow(self) -> bool:
+        return self.monthly_spending is not None or self.monthly_income is not None
 
 class GroundedContext(BaseModel):
     query: str

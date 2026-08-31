@@ -19,20 +19,31 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // True when a registration attempt was rejected because the email already
+  // exists — lets us offer a one-tap switch to Sign In instead of silently
+  // logging the user in (registration and login stay clearly separate).
+  const [emailAlreadyExists, setEmailAlreadyExists] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setErrorMessage(null);
+    setEmailAlreadyExists(false);
     try {
       if (isSignUp) {
         await register(email, fullName || email.split("@")[0], password);
       } else {
-        await login(email || "alex.mercer@fintech.demo", password);
+        await login(email, password);
       }
       router.push("/dashboard");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Authentication failed. Please check your credentials.";
-      setErrorMessage(msg);
+      if (isSignUp && /already exists/i.test(msg)) {
+        setEmailAlreadyExists(true);
+        setErrorMessage("An account with this email already exists. Sign in instead.");
+      } else {
+        setErrorMessage(msg);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -106,7 +117,22 @@ export default function LoginPage() {
           {errorMessage && (
             <div className="p-3 rounded-xl bg-red-950/40 border border-red-500/40 mb-4 text-xs text-red-200 flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-              <span>{errorMessage}</span>
+              <div className="space-y-1.5">
+                <span className="block">{errorMessage}</span>
+                {emailAlreadyExists && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSignUp(false);
+                      setErrorMessage(null);
+                      setEmailAlreadyExists(false);
+                    }}
+                    className="text-emerald-300 hover:text-emerald-200 font-semibold underline"
+                  >
+                    Switch to Sign In
+                  </button>
+                )}
+              </div>
             </div>
           )}
 

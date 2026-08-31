@@ -63,13 +63,19 @@ class SpendingIntelligenceService:
 
     @staticmethod
     def _format_response(raw) -> SpendingIntelligenceResponse:
+        # Per-category month-over-month change is only shown for the canonical demo
+        # dataset (where the +31% Food & Dining anomaly is part of the scripted
+        # story). For a real user we do not currently compute a per-category MoM
+        # series, so we report 0.0 rather than fabricating a delta.
         categories = [
             CategorySpend(
                 category=c.category,
                 amount=c.amount,
                 percentage=c.percentage,
                 color=CATEGORY_COLORS.get(c.category, "#64748B"),
-                month_over_month_change_pct=31.0 if c.category == "Food & Dining" else 0.0
+                month_over_month_change_pct=(
+                    31.0 if (raw.is_demo and c.category == "Food & Dining") else 0.0
+                ),
             )
             for c in raw.categories
         ]

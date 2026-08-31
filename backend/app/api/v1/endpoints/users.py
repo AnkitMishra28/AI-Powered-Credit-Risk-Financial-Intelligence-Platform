@@ -6,15 +6,29 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 
-from app.schemas.user import UserCreate, UserLogin, UserResponse, TokenResponse
+from typing import Optional
+
+from app.schemas.user import UserCreate, UserLogin, UserResponse, TokenResponse, UserProfileUpdate
 from app.schemas.common import ApiResponse
 from app.db.session import get_db
 from app.db.repositories.user_repo import user_repo
 from app.core.security import create_access_token
 from app.core.rate_limiter import rate_limit_dependency
 from app.core.config import settings
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_optional_current_user
 from app.models.user import User
+
+
+def _user_response(user: User) -> UserResponse:
+    return UserResponse(
+        id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        designation=user.designation,
+        is_active=user.is_active,
+        is_demo=user.is_demo,
+        created_at=user.created_at,
+    )
 
 router = APIRouter()
 
@@ -53,14 +67,7 @@ async def register_user(
         extra_claims={"email": user.email, "full_name": user.full_name, "is_demo": user.is_demo}
     )
 
-    user_data = UserResponse(
-        id=user.id,
-        email=user.email,
-        full_name=user.full_name,
-        is_active=user.is_active,
-        is_demo=user.is_demo,
-        created_at=user.created_at
-    )
+    user_data = _user_response(user)
 
     return ApiResponse(
         success=True,
@@ -109,14 +116,7 @@ async def login_user(
         extra_claims={"email": user.email, "full_name": user.full_name, "is_demo": user.is_demo}
     )
 
-    user_data = UserResponse(
-        id=user.id,
-        email=user.email,
-        full_name=user.full_name,
-        is_active=user.is_active,
-        is_demo=user.is_demo,
-        created_at=user.created_at
-    )
+    user_data = _user_response(user)
 
     return ApiResponse(
         success=True,
@@ -139,27 +139,58 @@ async def get_current_user_profile(
     return ApiResponse(
         success=True,
         message="User profile retrieved",
-        data=UserResponse(
-            id=current_user.id,
-            email=current_user.email,
-            full_name=current_user.full_name,
-            is_active=current_user.is_active,
-            is_demo=current_user.is_demo,
-            created_at=current_user.created_at
-        ),
+        data=_user_response(current_user),
         is_demo=current_user.is_demo
+    )
+
+@router.patch("/me", response_model=ApiResponse[UserResponse], summary="Update Current User Profile")
+async def update_current_user_profile(
+    payload: UserProfileUpdate,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+):
+    """
+    Persists mutable profile fields (full name, designation) for the authenticated
+    member. The email address is the authentication identity and is immutable here,
+    so it is not accepted in the request body. The demo analyst account is read-only.
+    """
+    if current_user.is_demo:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The demo analyst profile is read-only.",
+        )
+
+    updated = await user_repo.update_profile(
+        session=session,
+        user=current_user,
+        full_name=payload.full_name,
+        designation=payload.designation,
+    )
+    return ApiResponse(
+        success=True,
+        message="Profile updated successfully",
+        data=_user_response(updated),
+        is_demo=updated.is_demo,
     )
 
 @router.post("/logout", response_model=ApiResponse[dict], summary="User Logout")
 async def logout_user(
-    current_user: User = Depends(get_current_user)
+    current_user: Optional[User] = Depends(get_optional_current_user)
 ):
     """
-    Invalidates current user session.
+    Ends the current session.
+
+    JWTs are stateless, so there is no server-side session to revoke; logout is
+    idempotent and always succeeds. It deliberately does NOT require a valid token
+    so an already-expired/invalid session can still be cleared cleanly by the
+    client without surfacing a 401 in the browser console. No user data is deleted.
     """
     return ApiResponse(
         success=True,
         message="Logged out successfully",
-        data={"user_id": current_user.id, "status": "logged_out"},
-        is_demo=current_user.is_demo
+        data={
+            "user_id": current_user.id if current_user else None,
+            "status": "logged_out",
+        },
+        is_demo=bool(current_user.is_demo) if current_user else False,
     )

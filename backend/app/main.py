@@ -56,12 +56,20 @@ app.add_middleware(RequestObservabilityMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 
 # 3. CORS Middleware
+#    - Explicit allow-list (localhost + the known production Vercel origin) from
+#      BACKEND_CORS_ORIGINS / CORS_ORIGINS.
+#    - PLUS an origin regex (default: any https://*.vercel.app) so every Vercel
+#      deployment URL of this project is accepted without enumeration. Never "*".
+_cors_origins = settings.BACKEND_CORS_ORIGINS if isinstance(settings.BACKEND_CORS_ORIGINS, list) else []
+_cors_origin_regex = settings.BACKEND_CORS_ORIGIN_REGEX.strip() or None
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS if isinstance(settings.BACKEND_CORS_ORIGINS, list) else ["*"],
+    allow_origins=_cors_origins,
+    allow_origin_regex=_cors_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Request-ID", "X-Process-Time"],
 )
 
 # Centralized Exception Handling

@@ -17,50 +17,40 @@ import {
   ChevronRight
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useCreditLens } from "@/context/CreditLensContext";
 
-const NAV_ITEMS = [
-  {
-    label: "Overview",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-    badge: null,
-  },
-  {
-    label: "Credit Health",
-    href: "/credit-health",
-    icon: Activity,
-    badge: "742",
-    badgeColor: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30",
-  },
-  {
-    label: "Risk Intelligence",
-    href: "/risk-analysis",
-    icon: ShieldCheck,
-    badge: "Low Risk",
-    badgeColor: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30",
-  },
-  {
-    label: "Statements",
-    href: "/statements",
-    icon: FileText,
-    badge: "Ingestion",
-    badgeColor: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30",
-  },
-  {
-    label: "Spending",
-    href: "/spending",
-    icon: CreditCard,
-    badge: "Anomaly",
-    badgeColor: "bg-amber-500/10 text-amber-300 border-amber-500/30",
-  },
-  {
-    label: "Ask CreditLens",
-    href: "/copilot",
-    icon: Bot,
-    badge: "Copilot",
-    badgeColor: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30",
-  },
+type NavItem = {
+  label: string;
+  href: string;
+  icon: typeof LayoutDashboard;
+  badge: string | null;
+  badgeColor?: string;
+};
+
+const EMERALD_BADGE = "bg-emerald-500/10 text-emerald-300 border-emerald-500/30";
+
+// Static feature-category tags only (never data). The Credit Health and Risk
+// Intelligence badges are filled in at render time from the authenticated user's
+// OWN computed data — a real user with nothing analyzed sees no number/label.
+const BASE_NAV_ITEMS: NavItem[] = [
+  { label: "Overview", href: "/dashboard", icon: LayoutDashboard, badge: null },
+  { label: "Credit Health", href: "/credit-health", icon: Activity, badge: null, badgeColor: EMERALD_BADGE },
+  { label: "Risk Intelligence", href: "/risk-analysis", icon: ShieldCheck, badge: null, badgeColor: EMERALD_BADGE },
+  { label: "Statements", href: "/statements", icon: FileText, badge: "Ingestion", badgeColor: EMERALD_BADGE },
+  { label: "Spending", href: "/spending", icon: CreditCard, badge: "Anomaly", badgeColor: "bg-amber-500/10 text-amber-300 border-amber-500/30" },
+  { label: "Ask CreditLens", href: "/copilot", icon: Bot, badge: "Copilot", badgeColor: EMERALD_BADGE },
 ];
+
+const READY = (s: string) => s === "ok" || s === "demo";
+
+function titleCaseRisk(cat: string): string {
+  // "LOW RISK" -> "Low Risk"
+  return cat
+    .toLowerCase()
+    .split(" ")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
 
 const SECONDARY_NAV = [
   {
@@ -74,6 +64,17 @@ const SECONDARY_NAV = [
 export function Sidebar() {
   const pathname = usePathname();
   const { user, isDemoMode } = useAuth();
+  const { creditHealth, riskAnalysis } = useCreditLens();
+
+  const NAV_ITEMS: NavItem[] = BASE_NAV_ITEMS.map((item) => {
+    if (item.href === "/credit-health" && READY(creditHealth.status) && creditHealth.data) {
+      return { ...item, badge: String(creditHealth.data.healthScore) };
+    }
+    if (item.href === "/risk-analysis" && READY(riskAnalysis.status) && riskAnalysis.data) {
+      return { ...item, badge: titleCaseRisk(riskAnalysis.data.riskCategory) };
+    }
+    return item;
+  });
 
   return (
     <aside className="w-64 bg-[#070B08] border-r border-white/[0.07] flex flex-col shrink-0 h-screen sticky top-0 select-none z-30">

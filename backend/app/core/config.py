@@ -74,12 +74,26 @@ class Settings(BaseSettings):
     # CORS Allowed Origins
     # Accepts either env var name: BACKEND_CORS_ORIGINS (canonical) or CORS_ORIGINS (alias).
     # Value may be a comma-separated string ("https://a.com,https://b.com") or a JSON array.
+    # The defaults below include the known production Vercel origin so the deployed
+    # frontend works even if the env var is not set on Render. Any env value REPLACES
+    # this list (it is not merged) — set it to your own origins to lock it down.
     BACKEND_CORS_ORIGINS: Union[List[str], str] = Field(
         default=[
             "http://localhost:3000",
             "http://127.0.0.1:3000",
+            "https://ai-powered-credit-risk-financial-in.vercel.app",
         ],
         validation_alias=AliasChoices("BACKEND_CORS_ORIGINS", "CORS_ORIGINS"),
+    )
+    # Regex matched against the request Origin IN ADDITION to the list above.
+    # Defaults to "any https://*.vercel.app" so every Vercel deployment of this
+    # project (production, preview, and per-branch URLs) is accepted without
+    # having to enumerate them. This is NOT a wildcard: non-Vercel origins and
+    # plain-HTTP origins are still rejected, and credentials remain scoped.
+    # Set to "" to disable regex matching and rely solely on the explicit list.
+    BACKEND_CORS_ORIGIN_REGEX: str = Field(
+        default=r"https://([a-z0-9-]+\.)*vercel\.app",
+        validation_alias=AliasChoices("BACKEND_CORS_ORIGIN_REGEX", "CORS_ORIGIN_REGEX"),
     )
 
     # Database Configuration (PostgreSQL / SQLite fallback)
@@ -152,6 +166,11 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "CRITICAL SECURITY CONFIGURATION ERROR: In production mode, "
                     "BACKEND_CORS_ORIGINS cannot contain wildcard '*' when credentials/tokens are used."
+                )
+            if self.BACKEND_CORS_ORIGIN_REGEX.strip() in {".*", ".+", "^.*$", "^.+$"}:
+                raise ValueError(
+                    "CRITICAL SECURITY CONFIGURATION ERROR: In production mode, "
+                    "BACKEND_CORS_ORIGIN_REGEX must not be a catch-all pattern when credentials/tokens are used."
                 )
         return self
 

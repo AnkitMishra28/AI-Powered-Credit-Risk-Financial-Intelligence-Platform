@@ -21,15 +21,45 @@ import {
 } from "lucide-react";
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const [activeTab, setActiveTab] = useState<"profile" | "security" | "privacy" | "ai">("profile");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const handleSave = (e: React.FormEvent) => {
+  // Controlled fields seeded from the authenticated profile. When the identity
+  // changes (e.g. after a fresh login) we re-seed during render using React's
+  // "adjust state when a prop changes" pattern — no effect, no cascading render.
+  const [fullName, setFullName] = useState(user?.fullName ?? "");
+  const [designation, setDesignation] = useState(user?.designation ?? "");
+  const [syncedForUserId, setSyncedForUserId] = useState(user?.id);
+
+  if (user && user.id !== syncedForUserId) {
+    setSyncedForUserId(user.id);
+    setFullName(user.fullName ?? "");
+    setDesignation(user.designation ?? "");
+  }
+
+  const isDemo = !!user?.isDemo;
+  const dirty =
+    fullName.trim() !== (user?.fullName ?? "").trim() ||
+    designation.trim() !== (user?.designation ?? "").trim();
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 2500);
+    if (isDemo || !dirty || isSaving) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await updateProfile({ fullName: fullName.trim(), designation: designation.trim() });
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 2500);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Could not save your profile. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -80,23 +110,45 @@ export default function SettingsPage() {
             <form onSubmit={handleSave} className="space-y-4 max-w-xl">
               <Input
                 label="Full Name"
-                defaultValue={user?.fullName || "Alex Mercer"}
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
                 leftIcon={<User className="w-4 h-4" />}
+                disabled={isDemo}
               />
               <Input
                 label="Email Address"
                 type="email"
-                defaultValue={user?.email || "alex.mercer@fintech.demo"}
+                value={user?.email ?? ""}
+                readOnly
                 leftIcon={<Lock className="w-4 h-4" />}
+                helperText="Your email is your sign-in identity and cannot be changed here."
               />
               <Input
                 label="Designation / Financial Profile"
-                defaultValue="Senior Product Analyst"
+                value={designation}
+                onChange={(e) => setDesignation(e.target.value)}
+                placeholder="e.g. Senior Product Analyst"
                 helperText="Used to categorize risk cohort benchmarking"
+                disabled={isDemo}
               />
 
+              {isDemo && (
+                <p className="text-xs text-amber-300/80">
+                  The demo analyst profile is read-only. Create a real account to edit and persist your profile.
+                </p>
+              )}
+              {saveError && (
+                <p className="text-xs text-rose-300">{saveError}</p>
+              )}
+
               <div className="pt-3">
-                <Button type="submit" variant="emerald" size="md">
+                <Button
+                  type="submit"
+                  variant="emerald"
+                  size="md"
+                  disabled={isDemo || !dirty || isSaving}
+                  isLoading={isSaving}
+                >
                   {isSaved ? "Profile Updated!" : "Save Changes"}
                 </Button>
               </div>

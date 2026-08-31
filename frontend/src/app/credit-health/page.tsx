@@ -128,16 +128,31 @@ export default function CreditHealthPage() {
               </div>
             </div>
 
-            {/* Trajectory Insights */}
-            <div className="p-4 bg-[#080D09] rounded-xl border border-white/[0.08] text-xs text-neutral-300 space-y-1 mt-4">
-              <div className="flex items-center gap-2 text-emerald-400 font-bold">
-                <TrendingUp className="w-4 h-4" />
-                <span>Steady Score Recovery Observed</span>
-              </div>
-              <p className="text-xs text-neutral-400 leading-relaxed">
-                Your score gained +18 points this cycle primarily due to reducing revolving credit balances by 7% (down from 75% to 68%).
-              </p>
-            </div>
+            {/* Trajectory Insights — derived from the user's OWN score history.
+                Only shown once at least two calculations exist so there is a real
+                trend to describe; no hardcoded deltas. */}
+            {creditHealth.history.length >= 2 && (() => {
+              const first = creditHealth.history[0];
+              const last = creditHealth.history[creditHealth.history.length - 1];
+              const scoreChange = last.score - first.score;
+              const utilChange = last.utilization - first.utilization;
+              const improving = scoreChange >= 0;
+              return (
+                <div className="p-4 bg-[#080D09] rounded-xl border border-white/[0.08] text-xs text-neutral-300 space-y-1 mt-4">
+                  <div className={`flex items-center gap-2 font-bold ${improving ? "text-emerald-400" : "text-amber-400"}`}>
+                    <TrendingUp className="w-4 h-4" />
+                    <span>{improving ? "Upward Score Trajectory" : "Score Softening"}</span>
+                  </div>
+                  <p className="text-xs text-neutral-400 leading-relaxed">
+                    Your CreditLens Health Score {improving ? "rose" : "fell"} {Math.abs(scoreChange)} point{Math.abs(scoreChange) === 1 ? "" : "s"}
+                    {" "}from {first.score} ({first.month}) to {last.score} ({last.month})
+                    {utilChange !== 0
+                      ? `, with revolving utilization moving ${utilChange < 0 ? "down" : "up"} ${Math.abs(utilChange)} pts (${first.utilization}% → ${last.utilization}%).`
+                      : "."}
+                  </p>
+                </div>
+              );
+            })()}
           </Card>
         </div>
       </div>

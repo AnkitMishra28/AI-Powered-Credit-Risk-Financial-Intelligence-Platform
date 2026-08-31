@@ -43,6 +43,29 @@ class UserRepository:
         return user
 
     @staticmethod
+    async def update_profile(
+        session: AsyncSession,
+        user: User,
+        full_name: Optional[str] = None,
+        designation: Optional[str] = None,
+    ) -> User:
+        """
+        Persists mutable profile fields for an already-authenticated user.
+        Only non-None values are applied. Email is never changed here.
+        """
+        if full_name is not None:
+            cleaned = full_name.strip()
+            if cleaned:
+                user.full_name = cleaned
+        if designation is not None:
+            # Empty string clears the designation; otherwise trim and store.
+            user.designation = designation.strip() or None
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+        return user
+
+    @staticmethod
     async def authenticate(
         session: AsyncSession,
         email: str,

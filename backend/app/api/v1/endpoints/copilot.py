@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.copilot import CopilotQueryRequest, CopilotQueryResponse
 from app.schemas.common import ApiResponse
 from app.services.copilot_service import copilot_service
+from app.rag.user_context import user_context_builder
 from app.db.session import get_db
 from app.db.repositories.copilot_repo import copilot_repo
 from app.core.rate_limiter import rate_limit_dependency
@@ -40,16 +41,26 @@ async def query_copilot(
     try:
         # Strict demo/real boundary: only the seeded demo account is grounded in the
         # canonical demo financial profile. A real authenticated user is grounded
-        # solely in their own analyzed data (currently surfaced via the dedicated
-        # credit-health / risk / spending endpoints) or nothing at all — never the
-        # demo profile, and the copilot must not invent user-specific figures.
+        # SOLELY in a context built from their OWN persisted data (credit-health
+        # snapshot + risk prediction + their transactions) — or nothing at all when
+        # they have analyzed nothing yet. The demo profile is never used for a real
+        # user and the copilot must not invent user-specific figures.
         is_demo_session = bool(current_user.is_demo)
+        real_user_context = None
+        if not is_demo_session and request.include_personal_context:
+            try:
+                real_user_context = await user_context_builder.build_real_user_context(
+                    session, current_user.id
+                )
+            except Exception:
+                real_user_context = None  # fail closed: no context rather than wrong context
+
         response_data = copilot_service.query(
             request,
             user_id=current_user.id,
             demo=is_demo_session,
             real_user=not is_demo_session,
-            real_user_context=None,
+            real_user_context=real_user_context,
         )
 
         # Persist copilot interaction in DB for authenticated user

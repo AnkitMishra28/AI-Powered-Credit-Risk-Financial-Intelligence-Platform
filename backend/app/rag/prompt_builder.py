@@ -91,26 +91,56 @@ def build_grounded_prompt(
 
     user_context_text = ""
     if user_context:
-        user_context_text = f"""
-============================================================
-USER'S STRUCTURED CREDITLENS FINANCIAL METRICS:
-============================================================
-• Credit Health Score: {user_context.health_score} / 1000 (Tier: {user_context.score_tier})
-• Payment Consistency: {user_context.payment_consistency_pct}%
-• Credit Utilization: {user_context.credit_utilization_pct}% (Revolving Balance: ₹{user_context.revolving_balance:,.2f} / Total Limit: ₹{user_context.credit_limit_total:,.2f})
-• Debt-to-Income (DTI): {user_context.debt_to_income_pct}%
-• Credit History Seasoning: {user_context.credit_history_years} years
-• Spending Stability: {user_context.spending_stability_pct}%
-• ML Default Risk Category: {user_context.risk_category} ({user_context.risk_probability_pct}% confidence)
-• Top Positive Drivers: {', '.join(user_context.top_positive_factors)}
-• Risk Watch Signals: {', '.join(user_context.risk_watch_factors)}
-• Monthly Income Inflow: ₹{user_context.monthly_income:,.2f}
-• Monthly Expenditure Outflow: ₹{user_context.monthly_spending:,.2f}
-• Net Monthly Cashflow: ₹{user_context.net_cashflow:,.2f}
-• Top Spending Categories: {', '.join(user_context.top_spending_categories)}
-• Spending Anomalies Flagged: {'; '.join(user_context.recent_anomalies) if user_context.recent_anomalies else 'None'}
-• Recurring Subscriptions: {'; '.join(user_context.active_subscriptions) if user_context.active_subscriptions else 'None'}
-"""
+        # Emit ONLY the metrics that were actually computed/persisted for this user.
+        # A real user's context is frequently partial (e.g. spending but no score
+        # yet); omitted lines must never be back-filled with placeholder numbers.
+        uc = user_context
+        lines: List[str] = []
+        if uc.health_score is not None:
+            lines.append(f"• Credit Health Score: {uc.health_score} / 1000 (Tier: {uc.score_tier})")
+        if uc.payment_consistency_pct is not None:
+            lines.append(f"• Payment Consistency: {uc.payment_consistency_pct}%")
+        if uc.has_utilization:
+            lines.append(
+                f"• Credit Utilization: {uc.credit_utilization_pct}% "
+                f"(Revolving Balance: ₹{uc.revolving_balance:,.2f} / Total Limit: ₹{uc.credit_limit_total:,.2f})"
+            )
+        if uc.debt_to_income_pct is not None:
+            lines.append(f"• Debt-to-Income (DTI): {uc.debt_to_income_pct}%")
+        if uc.credit_history_years is not None:
+            lines.append(f"• Credit History Seasoning: {uc.credit_history_years} years")
+        if uc.spending_stability_pct is not None:
+            lines.append(f"• Spending Stability: {uc.spending_stability_pct}%")
+        if uc.risk_category is not None:
+            lines.append(f"• ML Default Risk Category: {uc.risk_category} ({uc.risk_probability_pct}% confidence)")
+        if uc.top_positive_factors:
+            lines.append(f"• Top Positive Drivers: {', '.join(uc.top_positive_factors)}")
+        if uc.risk_watch_factors:
+            lines.append(f"• Risk Watch Signals: {', '.join(uc.risk_watch_factors)}")
+        if uc.monthly_income is not None:
+            lines.append(f"• Monthly Income Inflow: ₹{uc.monthly_income:,.2f}")
+        if uc.monthly_spending is not None:
+            lines.append(f"• Monthly Expenditure Outflow: ₹{uc.monthly_spending:,.2f}")
+        if uc.net_cashflow is not None:
+            lines.append(f"• Net Monthly Cashflow: ₹{uc.net_cashflow:,.2f}")
+        if uc.top_spending_categories:
+            lines.append(f"• Top Spending Categories: {', '.join(uc.top_spending_categories)}")
+        if uc.recent_anomalies:
+            lines.append(f"• Spending Anomalies Flagged: {'; '.join(uc.recent_anomalies)}")
+        if uc.active_subscriptions:
+            lines.append(f"• Recurring Subscriptions: {'; '.join(uc.active_subscriptions)}")
+
+        if lines:
+            body = "\n".join(lines)
+            user_context_text = (
+                "\n============================================================\n"
+                "USER'S STRUCTURED CREDITLENS FINANCIAL METRICS "
+                "(these are the ONLY user-specific numbers you may cite; do not infer any others):\n"
+                "============================================================\n"
+                f"{body}\n"
+            )
+        else:
+            user_context_text = "\n[USER FINANCIAL CONTEXT EXCLUDED — no analyzed data]\n"
     else:
         user_context_text = "\n[USER FINANCIAL CONTEXT EXCLUDED]\n"
 

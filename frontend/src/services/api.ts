@@ -17,8 +17,27 @@
  *   - `/api/v1` (same-origin / proxy)    -> unchanged
  *   - `http://localhost:8000/api/v1`     -> unchanged
  */
+// Known deployed backend. Used ONLY as a last-resort fallback when
+// NEXT_PUBLIC_API_URL is not provided at build time AND the app is running in a
+// browser on a non-local host (i.e. the Vercel deployment) — where "/api/v1"
+// same-origin would 404 because Vercel serves only the frontend. It is a public
+// URL, not a secret. An explicit NEXT_PUBLIC_API_URL always wins.
+const PRODUCTION_API_FALLBACK =
+  "https://ai-powered-credit-risk-financial.onrender.com/api/v1";
+
 function resolveApiBaseUrl(): string {
-  const raw = (process.env.NEXT_PUBLIC_API_URL || "/api/v1").trim();
+  const configured = (process.env.NEXT_PUBLIC_API_URL || "").trim();
+
+  let raw = configured;
+  if (!raw) {
+    const isBrowser = typeof window !== "undefined";
+    const host = isBrowser ? window.location.hostname : "";
+    const isLocal = host === "localhost" || host === "127.0.0.1" || host === "";
+    // Deployed browser with no configured API URL -> talk to the known backend.
+    // Local/SSR with no config -> same-origin "/api/v1" (dev proxy / Docker).
+    raw = isBrowser && !isLocal ? PRODUCTION_API_FALLBACK : "/api/v1";
+  }
+
   const withoutTrailingSlash = raw.replace(/\/+$/, "");
   if (!withoutTrailingSlash) {
     return "/api/v1";

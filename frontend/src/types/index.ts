@@ -7,6 +7,8 @@ export interface UserProfile {
   email: string;
   fullName: string;
   role: string;
+  /** Self-reported "Designation / Financial Profile" from Settings. Persisted server-side. */
+  designation?: string;
   avatarUrl?: string;
   isDemo: boolean;
 }

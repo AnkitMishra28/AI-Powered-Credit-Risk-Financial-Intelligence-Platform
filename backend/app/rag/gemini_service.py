@@ -140,6 +140,33 @@ class GeminiService:
 
         return result
 
+    @staticmethod
+    def _facts_from_context(uc: Optional[StructuredUserFinancialContext]) -> List[Dict[str, str]]:
+        """
+        Builds the grounding-fact chips from ONLY the fields a context actually
+        carries. A real user's partial context (e.g. spending but no score yet)
+        contributes just the facts it has; nothing is fabricated to fill gaps.
+        """
+        if not uc:
+            return []
+        facts: List[Dict[str, str]] = []
+        if uc.has_credit_health:
+            facts.append({"label": "Credit Health Score", "value": f"{uc.health_score} / 1000 ({uc.score_tier})"})
+        if uc.has_utilization:
+            facts.append({
+                "label": "Credit Utilization",
+                "value": f"{uc.credit_utilization_pct}% (₹{uc.revolving_balance:,.0f} / ₹{uc.credit_limit_total:,.0f})",
+            })
+        if uc.payment_consistency_pct is not None:
+            facts.append({"label": "Payment Consistency", "value": f"{uc.payment_consistency_pct}% on-time ratio"})
+        if uc.net_cashflow is not None:
+            facts.append({"label": "Net Monthly Cashflow", "value": f"₹{uc.net_cashflow:,.0f} / month"})
+        elif uc.monthly_spending is not None:
+            facts.append({"label": "Monthly Outflow", "value": f"₹{uc.monthly_spending:,.0f}"})
+        if uc.has_risk:
+            facts.append({"label": "ML Risk Category", "value": f"{uc.risk_category} ({uc.risk_probability_pct}% conf.)"})
+        return facts
+
     def _clean_and_parse_json(self, text: str) -> Optional[Dict[str, Any]]:
         """Cleans markdown JSON fences and parses JSON securely."""
         try:
@@ -190,14 +217,7 @@ class GeminiService:
                     )
                 )
 
-        grounding_facts = []
-        if user_context:
-            grounding_facts = [
-                {"label": "Credit Health Score", "value": f"{user_context.health_score} / 1000 ({user_context.score_tier})"},
-                {"label": "Credit Utilization", "value": f"{user_context.credit_utilization_pct}% (₹{user_context.revolving_balance:,.0f} / ₹{user_context.credit_limit_total:,.0f})"},
-                {"label": "Payment Consistency", "value": f"{user_context.payment_consistency_pct}% on-time ratio"},
-                {"label": "Net Monthly Cashflow", "value": f"₹{user_context.net_cashflow:,.0f} / month"},
-            ]
+        grounding_facts = self._facts_from_context(user_context)
 
         return StructuredGeminiResponse(
             answer=data.get("answer", "Here is your grounded financial intelligence summary."),
@@ -264,14 +284,7 @@ class GeminiService:
                 out_of_scope=True
             )
 
-        grounding_facts = []
-        if user_context:
-            grounding_facts = [
-                {"label": "Credit Health Score", "value": f"{user_context.health_score} / 1000 ({user_context.score_tier})"},
-                {"label": "Credit Utilization", "value": f"{user_context.credit_utilization_pct}% (₹{user_context.revolving_balance:,.0f} / ₹{user_context.credit_limit_total:,.0f})"},
-                {"label": "Payment Consistency", "value": f"{user_context.payment_consistency_pct}% on-time index"},
-                {"label": "Net Monthly Cashflow", "value": f"₹{user_context.net_cashflow:,.0f} surplus"},
-            ]
+        grounding_facts = self._facts_from_context(user_context)
 
         # Minimum payment query
         if "minimum" in lower_q:
@@ -291,7 +304,7 @@ class GeminiService:
                 "Can take 10–15+ years to amortize a substantial balance using minimum payments alone"
             ]
             personalized = []
-            if user_context:
+            if user_context and user_context.has_utilization:
                 personalized.append(
                     f"Your current revolving balance is ₹{user_context.revolving_balance:,.0f} (utilization: {user_context.credit_utilization_pct}%). "
                     f"Paying only the minimum will keep your utilization elevated in the watch corridor."
@@ -317,85 +330,154 @@ class GeminiService:
                 "Mid-cycle payments reduce reported balances prior to statement generation dates"
             ]
             personalized = []
-            if user_context:
+            if user_context and user_context.has_utilization:
                 personalized.append(
                     f"Your profile currently has {user_context.credit_utilization_pct}% utilization (₹{user_context.revolving_balance:,.0f} balance / ₹{user_context.credit_limit_total:,.0f} limit). "
                     f"Reducing your balance by ₹{user_context.revolving_balance - (user_context.credit_limit_total * 0.3):,.0f} will move you into the prime <30% tier."
                 )
             followups = [
                 "How do mid-cycle card payments work?",
-                "Why did my Credit Health Score reach 775?",
+                "How does credit utilization affect the Credit Health Score?",
                 "How does spending velocity impact credit health?"
             ]
 
         # Score explanation query
-        elif any(k in lower_q for k in ["score", "775", "742", "credit health"]):
-            score_val = user_context.health_score if user_context else 775
-            tier_val = user_context.score_tier if user_context else "Healthy"
-            answer = (
-                f"Your CreditLens Credit Health Score is **{score_val} / 1000** ({tier_val} tier), calculated deterministically "
-                "across 5 weighted pillars:\n\n"
-                "1. **Payment Consistency (35% weight)**: High resilience driven by a 94% on-time payment ratio.\n"
-                "2. **Revolving Credit Utilization (25% weight)**: Primary drag on the score due to 68% utilization (₹1.7L / ₹2.5L limit).\n"
-                "3. **Debt-to-Income / DTI (20% weight)**: Healthy 26.1% debt servicing load relative to monthly income.\n"
-                "4. **Credit History Seasoning (10% weight)**: Strong 4.2-year account seasoning.\n"
-                "5. **Spending Stability (10% weight)**: Stable baseline outflows with a recent 31% dining velocity surge."
-            )
-            key_points = [
-                "Credit Health Score is an educational 0–1000 mathematical diagnostic index",
-                "Payment consistency provides your strongest positive score anchor",
-                "Revolving utilization (68%) is the primary area for score enhancement"
-            ]
-            personalized = [
-                "Lowering revolving utilization below 30% can propel your score above the 800+ Excellent threshold."
-            ]
+        elif any(k in lower_q for k in ["score", "credit health"]):
+            if user_context and user_context.has_credit_health:
+                lines = [
+                    f"Your CreditLens Credit Health Score is **{user_context.health_score} / 1000** "
+                    f"({user_context.score_tier} tier), calculated deterministically across 5 weighted pillars:\n"
+                ]
+                if user_context.payment_consistency_pct is not None:
+                    lines.append(f"1. **Payment Consistency (35% weight)**: {user_context.payment_consistency_pct}% on-time ratio.")
+                else:
+                    lines.append("1. **Payment Consistency (35% weight)** — largest single weight.")
+                if user_context.has_utilization:
+                    lines.append(
+                        f"2. **Revolving Credit Utilization (25% weight)**: {user_context.credit_utilization_pct}% "
+                        f"(₹{user_context.revolving_balance:,.0f} / ₹{user_context.credit_limit_total:,.0f})."
+                    )
+                else:
+                    lines.append("2. **Revolving Credit Utilization (25% weight)** — revolving balance ÷ aggregate limit.")
+                if user_context.debt_to_income_pct is not None:
+                    lines.append(f"3. **Debt-to-Income / DTI (20% weight)**: {user_context.debt_to_income_pct}% debt servicing load.")
+                else:
+                    lines.append("3. **Debt-to-Income / DTI (20% weight)** — monthly debt obligations ÷ monthly income.")
+                if user_context.credit_history_years is not None:
+                    lines.append(f"4. **Credit History Seasoning (10% weight)**: {user_context.credit_history_years} years.")
+                else:
+                    lines.append("4. **Credit History Seasoning (10% weight)** — average age of your credit lines.")
+                lines.append("5. **Spending Stability (10% weight)** — current outflow vs your rolling baseline.")
+                answer = "\n".join(lines)
+                key_points = [
+                    "Credit Health Score is an educational 0–1000 mathematical diagnostic index",
+                    "Payment consistency carries the largest single weight (35%)",
+                    "Revolving utilization is typically the primary lever for change",
+                ]
+                personalized = [
+                    "Lowering revolving utilization below 30% has the largest deterministic upside for your score."
+                ]
+            else:
+                answer = (
+                    "The CreditLens Credit Health Score is an educational 0–1000 diagnostic computed deterministically "
+                    "from 5 weighted pillars:\n\n"
+                    "1. **Payment Consistency (35% weight)** — share of obligations paid on time.\n"
+                    "2. **Revolving Credit Utilization (25% weight)** — revolving balance ÷ aggregate limit.\n"
+                    "3. **Debt-to-Income / DTI (20% weight)** — monthly debt obligations ÷ monthly income.\n"
+                    "4. **Credit History Seasoning (10% weight)** — average age of your credit lines.\n"
+                    "5. **Spending Stability (10% weight)** — current outflow vs your rolling baseline.\n\n"
+                    "You have not calculated your score yet, so no personal figure is shown. Complete your credit "
+                    "profile in the Credit Health calculator to generate it."
+                )
+                key_points = [
+                    "Credit Health Score is an educational 0–1000 mathematical diagnostic index",
+                    "Payment consistency carries the largest single weight (35%)",
+                    "No personal score has been calculated for your account yet",
+                ]
+                personalized = []
             followups = [
-                "What is the impact of my 68% credit utilization?",
+                "How is revolving credit utilization calculated?",
                 "How does CreditLens differ from CIBIL?",
                 "What happens if I only pay the minimum amount?"
             ]
 
         # Spending / Dining anomaly query
         elif any(k in lower_q for k in ["dining", "spending", "food", "outflow", "anomaly"]):
-            answer = (
-                "Your spending analysis detected a **+31% Food & Dining velocity surge** relative to your 3-month rolling baseline.\n\n"
-                "• **Cashflow Impact**: Discretionary dining and delivery expenditure totaled ₹14,200 this cycle (vs ₹10,840 historical mean).\n"
-                "• **Liquidity Buffer**: While your net cashflow remains positive (₹15,770 surplus on ₹65,000 income), "
-                "discretionary surges reduce the surplus available for accelerating revolving debt reduction."
-            )
-            key_points = [
-                "Dining velocity exceeded historical rolling average by 31%",
-                "Essential obligations remain well covered at ₹29,000 / month",
-                "Surplus redirection to revolving balances would lower utilization faster"
-            ]
-            personalized = [
-                "Trimming dining spend by ₹3,500 back to your baseline allows that cashflow to be channeled toward revolving debt reduction."
-            ]
+            if user_context and user_context.has_cashflow:
+                _out = f"₹{user_context.monthly_spending:,.0f}" if user_context.monthly_spending is not None else "n/a"
+                _inc = f"₹{user_context.monthly_income:,.0f}" if user_context.monthly_income is not None else "n/a"
+                _net = f" (net cashflow ₹{user_context.net_cashflow:,.0f})" if user_context.net_cashflow is not None else ""
+                answer = (
+                    f"From your analyzed transactions, current-cycle outflow is {_out} against income of {_inc}{_net}.\n\n"
+                    "• **Anomaly detection** compares each category's spend to your 3-month rolling average and flags "
+                    "statistically significant surges.\n"
+                    "• Redirecting discretionary surplus toward revolving balances lowers utilization faster."
+                )
+                key_points = [
+                    "Spending analytics are derived only from your uploaded transactions",
+                    "Category velocity is compared against your own rolling baseline",
+                    "Discretionary surplus is the fastest lever for revolving debt reduction",
+                ]
+                personalized = [
+                    f"Your top categories: {', '.join(user_context.top_spending_categories) or 'not enough data yet'}."
+                ]
+            else:
+                answer = (
+                    "CreditLens spending intelligence is derived entirely from the transactions in the bank/card "
+                    "statements you upload. It normalizes merchants, assigns categories, then flags anomalies by "
+                    "comparing each category's spend to your own 3-month rolling average.\n\n"
+                    "You have not uploaded any statements yet, so there is no personal spending to report. Upload a "
+                    "statement to unlock category breakdowns, recurring-payment detection and anomaly flags."
+                )
+                key_points = [
+                    "Spending analytics require your uploaded statement data",
+                    "Anomalies are relative to your own historical baseline, not a fixed threshold",
+                    "No personal spending has been analyzed for your account yet",
+                ]
+                personalized = []
             followups = [
-                "Where is most of my spending going this month?",
-                "How does Debt Avalanche help eliminate card balances?",
+                "How does anomaly detection compare against a rolling baseline?",
+                "How does the Debt Avalanche method work?",
                 "What is the 50/30/20 budgeting standard?"
             ]
 
         # Risk classification query
         elif "risk" in lower_q:
-            answer = (
-                "Your machine learning default risk evaluation is **LOW RISK** (77% model confidence), driven by our primary XGBoost tree ensemble:\n\n"
-                "• **Top Positive Drivers (TreeSHAP)**: Strong checking liquidity, low installment burden, and 94% on-time payment track record.\n"
-                "• **Watch Signals**: Elevated revolving balance utilization (68%) and short-term discretionary spending velocity."
-            )
-            key_points = [
-                "XGBoost classifier predicts underlying default probability mapped to Low Risk",
-                "TreeSHAP attributions identify exact positive drivers and watch signals",
-                "Consistent payments provide the strongest safety buffer against default classification"
-            ]
-            personalized = [
-                "Maintaining your clean payment streak ensures your risk classification remains firmly in the Low Risk tier."
-            ]
+            if user_context and user_context.has_risk:
+                answer = (
+                    f"Your most recent machine-learning risk evaluation is **{user_context.risk_category}** "
+                    f"({user_context.risk_probability_pct}% model confidence), produced by the calibrated XGBoost "
+                    "classifier with TreeSHAP attributions.\n\n"
+                    f"• **Top positive drivers**: {'; '.join(user_context.top_positive_factors[:3]) or 'n/a'}.\n"
+                    f"• **Watch signals**: {'; '.join(user_context.risk_watch_factors[:3]) or 'n/a'}."
+                )
+                key_points = [
+                    "The XGBoost classifier outputs a calibrated default-probability distribution",
+                    "TreeSHAP attributions identify the exact positive drivers and watch signals",
+                    "The result reflects the applicant profile you submitted",
+                ]
+                personalized = [
+                    "Maintaining an on-time payment streak is the strongest lever to hold a lower-risk classification."
+                ]
+            else:
+                answer = (
+                    "The CreditLens risk model is a calibrated XGBoost classifier trained on the public "
+                    "(South) German Credit benchmark. It scores a 20-field structured applicant profile "
+                    "(checking status, credit history, purpose, savings, employment, housing, and so on) and "
+                    "returns a probability distribution across Low / Medium / High risk with TreeSHAP explanations.\n\n"
+                    "A bank statement does not contain those 20 structured fields, so no risk result is shown until "
+                    "you submit an applicant profile. No personal risk figure is being estimated for you."
+                )
+                key_points = [
+                    "The risk model needs a 20-field structured applicant profile, not a bank statement",
+                    "Output is a calibrated Low/Medium/High probability distribution with TreeSHAP attributions",
+                    "No personal risk assessment has been generated for your account yet",
+                ]
+                personalized = []
             followups = [
-                "What features drive my TreeSHAP explainability?",
+                "What fields does the risk model require?",
                 "Why is credit utilization important?",
-                "How do I improve my Credit Health Score?"
+                "How is the Credit Health Score calculated?"
             ]
 
         # General authoritative overview
@@ -412,11 +494,14 @@ class GeminiService:
                 "All outputs are for financial education and pattern awareness"
             ]
             personalized = []
-            if user_context:
-                personalized.append(f"Current Profile: {user_context.health_score} / 1000 ({user_context.score_tier}) | {user_context.risk_category} ML Risk.")
+            if user_context and user_context.has_credit_health:
+                _rc = f" | {user_context.risk_category} ML Risk" if user_context.has_risk else ""
+                personalized.append(
+                    f"Current Profile: {user_context.health_score} / 1000 ({user_context.score_tier}){_rc}."
+                )
             followups = [
                 "What happens if I only pay the minimum amount?",
-                "Why is my Credit Health Score 775?",
+                "How is the Credit Health Score calculated?",
                 "How can I reduce my revolving credit utilization?"
             ]
 

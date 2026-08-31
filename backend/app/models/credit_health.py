@@ -24,6 +24,12 @@ class CreditHealthSnapshot(Base):
     spending_stability_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     
     factors: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(JSON, nullable=True)
+    # Raw structured inputs the score was calculated from (monthly_income,
+    # credit_limit_total, revolving_balance_total, total_monthly_emi,
+    # payment_consistency_ratio, credit_history_years, ...). Persisted so the
+    # Copilot can ground answers in this user's OWN numbers. Nullable for rows
+    # written before this column existed.
+    profile_inputs: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
     disclaimer: Mapped[str] = mapped_column(
         String(500),
         nullable=False,

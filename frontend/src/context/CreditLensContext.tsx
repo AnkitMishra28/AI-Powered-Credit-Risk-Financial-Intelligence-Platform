@@ -56,6 +56,17 @@ const CreditLensContext = createContext<CreditLensContextType | undefined>(undef
 
 const LOADING = <T,>(): SectionState<T> => ({ data: null, status: "loading", message: "" });
 
+// A real user starts with an empty financial profile. Demo values are only
+// applied for an explicit demo session (see `load()` below) — never as a default.
+const EMPTY_FINANCIAL_PROFILE: FinancialProfile = {
+  monthlyIncome: 0,
+  employmentType: "",
+  creditLimitTotal: 0,
+  revolvingBalanceTotal: 0,
+  activeLoansCount: 0,
+  totalMonthlyEMI: 0,
+};
+
 /**
  * Turns a service DataResult into a SectionState. For a DEMO session only, an
  * unreachable API falls back to the bundled demo dataset so the portfolio demo
@@ -80,7 +91,7 @@ export function CreditLensProvider({ children }: { children: React.ReactNode }) 
   const [riskAnalysis, setRiskAnalysis] = useState<SectionState<RiskAnalysisData>>(LOADING);
   const [spending, setSpending] = useState<SectionState<SpendingIntelligenceData>>(LOADING);
 
-  const [financialProfile, setFinancialProfile] = useState<FinancialProfile>(DEMO_FINANCIAL_PROFILE);
+  const [financialProfile, setFinancialProfile] = useState<FinancialProfile>(EMPTY_FINANCIAL_PROFILE);
   const [notifications, setNotifications] = useState<InsightNotification[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -102,8 +113,9 @@ export function CreditLensProvider({ children }: { children: React.ReactNode }) 
     setRiskAnalysis(toSectionState(riskRes, isDemoMode, DEMO_RISK_ANALYSIS));
     setSpending(toSectionState(spendingRes, isDemoMode, DEMO_SPENDING_INTELLIGENCE));
 
-    // Demo-only scaffolding notifications; real users start with a clean slate.
+    // Demo-only scaffolding; real users start with a clean slate.
     setNotifications(isDemoMode ? DEMO_NOTIFICATIONS : []);
+    setFinancialProfile(isDemoMode ? DEMO_FINANCIAL_PROFILE : EMPTY_FINANCIAL_PROFILE);
 
     const anyError =
       healthRes.status === "error" &&
