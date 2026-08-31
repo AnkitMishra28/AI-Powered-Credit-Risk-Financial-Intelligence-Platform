@@ -427,3 +427,94 @@ def test_real_user_category_mom_change_is_not_fabricated():
         assert c["month_over_month_change_pct"] == 0.0, (
             f"real user got a fabricated MoM delta for {c['category']}"
         )
+
+
+# --------------------------------------------------------------------------- #
+# 6. Overview / Credit Health / Risk after a statement upload                 #
+#    A user who has uploaded transactions but NOT completed the structured    #
+#    credit / applicant profile is reported as insufficient_data (never a     #
+#    fabricated score / "LOW RISK"). Submitting the profile — which is what   #
+#    the new on-page CreditProfileForm / RiskProfileForm do — flips the       #
+#    summary to "ok" with the user's OWN persisted result, and a second user  #
+#    still sees nothing.                                                      #
+# --------------------------------------------------------------------------- #
+def test_uploaded_statement_alone_is_insufficient_then_profile_form_unlocks_score():
+    email, tok, _uid = _register("overview.chain")
+    h = {"Authorization": f"Bearer {tok}"}
+
+    up = client.post(
+        "/api/v1/statements/upload",
+        files={"file": ("sbi.csv", io.BytesIO(SAMPLE_CSV.encode()), "text/csv")},
+        headers=h,
+    )
+    assert up.status_code == 200
+    assert up.json()["data"]["parsed_transactions_count"] >= 5
+
+    # Spending / Overview data source IS available from the statement alone.
+    sp = client.get("/api/v1/spending/overview", headers=h).json()
+    assert sp["data_status"] == "ok" and sp["has_financial_data"] is True
+    assert sp["data"]["total_transactions_count"] >= 5
+
+    # Credit Health / Risk need the structured profile -> explicit insufficient_data,
+    # NOT a canonical score, NOT "no_data".
+    ch = client.get("/api/v1/credit-health/summary", headers=h).json()
+    assert ch["data"] is None and ch["data_status"] == "insufficient_data" and ch["is_demo"] is False
+    rk = client.get("/api/v1/risk/analysis", headers=h).json()
+    assert rk["data"] is None and rk["data_status"] == "insufficient_data" and rk["is_demo"] is False
+
+    # CreditProfileForm submit (income/spending pre-filled from the statement).
+    calc = client.post(
+        "/api/v1/credit-health/calculate",
+        headers=h,
+        json={
+            "monthly_income": 72000.0,
+            "credit_limit_total": 300000.0,
+            "revolving_balance_total": 45000.0,
+            "total_monthly_emi": 12000.0,
+            "payment_consistency_ratio": 0.95,
+            "credit_history_years": 4.0,
+            "monthly_spending_total": 11949.0,
+            "spending_average_6mo": 11949.0,
+        },
+    )
+    assert calc.status_code == 200
+    own_score = calc.json()["data"]["health_score"]
+    assert calc.json()["data_status"] == "ok"
+
+    summ = client.get("/api/v1/credit-health/summary", headers=h).json()
+    assert summ["data_status"] == "ok" and summ["data"]["health_score"] == own_score
+    assert summ["data"]["health_score"] != 775
+
+    # RiskProfileForm submit (exact 20-field model schema).
+    pred = client.post(
+        "/api/v1/risk/predict",
+        headers=h,
+        json={
+            "checking_status": "0<=X<200", "duration": 18, "credit_history": "existing paid",
+            "purpose": "furniture/equipment", "credit_amount": 2500.0, "savings_status": "500<=X<1000",
+            "employment": "4<=X<7", "installment_commitment": 2, "personal_status": "male single",
+            "other_parties": "none", "residence_since": 3, "property_magnitude": "real estate",
+            "age": 31, "other_payment_plans": "none", "housing": "own", "existing_credits": 2,
+            "job": "skilled", "num_dependents": 1, "own_telephone": "yes", "foreign_worker": "no",
+        },
+    )
+    assert pred.status_code == 200 and pred.json()["data_status"] == "ok"
+    own_cat = pred.json()["data"]["risk_category"]
+    analysis = client.get("/api/v1/risk/analysis", headers=h).json()
+    assert analysis["data_status"] == "ok" and analysis["data"]["risk_category"] == own_cat
+    _p = analysis["data"]["probability_distribution"]
+    assert round(_p["low_risk"] + _p["medium_risk"] + _p["high_risk"], 2) == 1.00
+
+    # Persists across a fresh login.
+    re = client.post("/api/v1/users/login", json={"email": email, "password": TEST_PASSWORD})
+    h2 = {"Authorization": f"Bearer {re.json()['data']['access_token']}"}
+    assert client.get("/api/v1/credit-health/summary", headers=h2).json()["data"]["health_score"] == own_score
+    assert client.get("/api/v1/risk/analysis", headers=h2).json()["data"]["risk_category"] == own_cat
+
+    # A different user sees NONE of it.
+    _e2, tok2, _u2 = _register("overview.other")
+    h_other = {"Authorization": f"Bearer {tok2}"}
+    assert client.get("/api/v1/credit-health/summary", headers=h_other).json()["data_status"] == "no_data"
+    assert client.get("/api/v1/risk/analysis", headers=h_other).json()["data_status"] == "insufficient_data"
+    assert client.get("/api/v1/transactions", headers=h_other).json()["data"]["total_count"] == 0
+    assert client.get("/api/v1/spending/overview", headers=h_other).json()["data"]["total_transactions_count"] == 0

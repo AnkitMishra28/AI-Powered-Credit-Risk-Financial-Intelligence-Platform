@@ -8,12 +8,15 @@ import { StatementHistoryList } from "@/components/fintech/StatementHistoryList"
 import { TransactionLedger } from "@/components/fintech/TransactionLedger";
 import { StatementSummary, Transaction } from "@/types";
 import { getStatements, getTransactions } from "@/services/statementService";
+import { useCreditLens } from "@/context/CreditLensContext";
 import { FileText, RefreshCw } from "lucide-react";
 
 export default function StatementsPage() {
   const [statements, setStatements] = useState<StatementSummary[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  // Shared dashboard/analytics state (Overview, Spending, Credit Health, Risk).
+  const { refreshData: refreshDashboardData } = useCreditLens();
 
   const refreshData = async () => {
     setLoading(true);
@@ -55,7 +58,11 @@ export default function StatementsPage() {
   }, []);
 
   const handleUploadSuccess = () => {
+    // Refresh this page's ledger AND the shared analytics context so Overview,
+    // Spending, Credit Health and Risk immediately reflect the new transactions
+    // — no full-page reload required.
     void refreshData();
+    void refreshDashboardData();
   };
 
   return (

@@ -6,10 +6,10 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { RiskDistributionCard } from "@/components/fintech/RiskDistributionCard";
 import { ShapExplainabilityCard } from "@/components/fintech/ShapExplainabilityCard";
 import { EducationalDisclaimer } from "@/components/fintech/EducationalDisclaimer";
+import { RiskProfileForm } from "@/components/fintech/RiskProfileForm";
 import { useCreditLens } from "@/context/CreditLensContext";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ErrorState } from "@/components/ui/ErrorState";
 import {
@@ -44,7 +44,8 @@ export default function RiskAnalysisPage() {
   }
 
   if (!riskAnalysis) {
-    // no_data / insufficient_data — never show the canonical demo applicant result
+    // no_data / insufficient_data — never show the canonical demo applicant
+    // result. Give the user the real 20-field intake so the model can run.
     return (
       <AppLayout>
         <PageHeader
@@ -52,16 +53,9 @@ export default function RiskAnalysisPage() {
           subtitle="Machine learning multi-class risk classification, multi-tier probability distributions, and TreeSHAP feature attributions."
           badge={<Badge variant="slate" size="sm">Analysis pending</Badge>}
         />
-        <EmptyState
-          icon={<AlertTriangle className="w-7 h-7" />}
-          title="Risk analysis pending"
-          description={
-            riskState.message ||
-            "The risk model scores a structured applicant credit profile (the public German Credit feature schema) — which a bank statement does not contain. Submit your credit profile to generate a personalized, explainable risk assessment. This is an educational model, not a bureau or underwriting decision."
-          }
-          actionLabel="Go to Statements"
-          actionHref="/statements"
-        />
+        <div className="mb-8">
+          <RiskProfileForm contextMessage={riskState.message || undefined} />
+        </div>
         <EducationalDisclaimer />
       </AppLayout>
     );

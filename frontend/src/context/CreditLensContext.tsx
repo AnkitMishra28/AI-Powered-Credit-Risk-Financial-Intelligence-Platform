@@ -84,8 +84,10 @@ function toSectionState<T>(
   return { data: result.data, status: result.status, message: result.message };
 }
 
+const EMPTY_SECTION = <T,>(): SectionState<T> => ({ data: null, status: "no_data", message: "" });
+
 export function CreditLensProvider({ children }: { children: React.ReactNode }) {
-  const { isDemoMode } = useAuth();
+  const { isDemoMode, isAuthenticated, user } = useAuth();
 
   const [creditHealth, setCreditHealth] = useState<SectionState<CreditHealthData>>(LOADING);
   const [riskAnalysis, setRiskAnalysis] = useState<SectionState<RiskAnalysisData>>(LOADING);
@@ -96,7 +98,24 @@ export function CreditLensProvider({ children }: { children: React.ReactNode }) 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Identity the data currently in state belongs to. Used so a logout or a
+  // switch to another account never leaves the previous user's financial data
+  // on screen — the moment the identity changes we wipe state before refetching.
+  const identityKey = isAuthenticated ? `${user?.id ?? "?"}:${isDemoMode ? "demo" : "real"}` : "anon";
+
   const load = useCallback(async () => {
+    // Not signed in -> hold NO financial data. No API calls (they would 401).
+    if (!isAuthenticated) {
+      setCreditHealth(EMPTY_SECTION());
+      setRiskAnalysis(EMPTY_SECTION());
+      setSpending(EMPTY_SECTION());
+      setNotifications([]);
+      setFinancialProfile(EMPTY_FINANCIAL_PROFILE);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setCreditHealth(LOADING);
@@ -125,8 +144,12 @@ export function CreditLensProvider({ children }: { children: React.ReactNode }) 
       setError("Unable to reach the CreditLens API. Please try again shortly.");
     }
     setIsLoading(false);
-  }, [isDemoMode]);
+  }, [isDemoMode, isAuthenticated]);
 
+  // Reload whenever the authenticated identity changes (login / logout / switch
+  // account / toggle demo). `load()` itself wipes section state to LOADING (or
+  // EMPTY when unauthenticated) as its first action, so the previous user's data
+  // never lingers. `identityKey` is a dep so any identity transition re-runs it.
   useEffect(() => {
     let active = true;
     void (async () => {
@@ -136,7 +159,7 @@ export function CreditLensProvider({ children }: { children: React.ReactNode }) 
     return () => {
       active = false;
     };
-  }, [load]);
+  }, [load, identityKey]);
 
   const markNotificationAsRead = (id: string) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));

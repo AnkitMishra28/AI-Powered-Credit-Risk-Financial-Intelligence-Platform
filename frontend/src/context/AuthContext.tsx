@@ -24,9 +24,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Only a persisted session establishes identity. There is NO implicit demo
   // default: a brand-new visitor is unauthenticated (isDemoMode=false) and only
   // enters demo mode by explicitly choosing "Load Demo" (loginAsDemo).
+  // A session is valid only when BOTH a saved user object AND a token exist.
   const readSavedUser = (): UserProfile | null => {
     if (typeof window === "undefined") return null;
     try {
+      if (!localStorage.getItem("creditlens_token")) return null;
       const savedUserStr = localStorage.getItem("creditlens_user");
       if (savedUserStr) {
         const savedUser = JSON.parse(savedUserStr);
@@ -45,21 +47,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return saved ? saved.isDemo === true : false;
   });
 
-  // Verify stored session on mount
+  const endSession = React.useCallback(() => {
+    setUser(null);
+    setIsDemoMode(false);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("creditlens_user");
+        localStorage.removeItem("creditlens_token");
+      } catch {
+        /* storage unavailable */
+      }
+    }
+  }, []);
+
+  // Verify the stored session against the backend on mount.
   useEffect(() => {
     const token = getAuthToken();
-    if (token && token !== "demo_token_alex_mercer") {
-      authService.getMe().then((profile) => {
+    // No token -> readSavedUser() already returned null in the initializer, so
+    // `user` is null and the route guard will redirect. Just tidy any orphan key.
+    if (!token) {
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.removeItem("creditlens_user");
+        } catch {
+          /* ignore */
+        }
+      }
+      return;
+    }
+    if (token === "demo_token_alex_mercer") return; // offline demo session
+    let cancelled = false;
+    authService
+      .getMe()
+      .then((profile) => {
+        if (cancelled) return;
         if (profile) {
           setUser(profile);
           setIsDemoMode(profile.isDemo);
           localStorage.setItem("creditlens_user", JSON.stringify(profile));
+        } else {
+          // Token rejected (expired / invalid) — do NOT keep a phantom
+          // authenticated UI whose every API call would 401.
+          endSession();
         }
-      }).catch(() => {
-        // Stale token, keep existing state
+      })
+      .catch(() => {
+        /* network blip — keep the optimistic session; API calls surface errors */
       });
-    }
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [endSession]);
 
   const login = async (email: string, password?: string) => {
     const loggedUser = await authService.login(email, password);
@@ -108,14 +146,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
-    // Clear local auth state immediately so the UI never blocks on the network;
-    // the (idempotent) server call happens in the background.
+    // 1. Revoke server-side (idempotent — never blocks, never 401s).
     void authService.logout();
+    // 2. Tear down ALL client auth + protected state.
     setUser(null);
     setIsDemoMode(false);
     if (typeof window !== "undefined") {
-      localStorage.removeItem("creditlens_user");
-      localStorage.removeItem("creditlens_token");
+      try {
+        localStorage.removeItem("creditlens_user");
+        localStorage.removeItem("creditlens_token");
+        sessionStorage.clear();
+      } catch {
+        /* storage unavailable — nothing to clear */
+      }
+      // 3. Hard navigation to the public login page. A full document load
+      //    guarantees every in-memory React context (including CreditLens
+      //    financial data) is destroyed, eliminates any navigate-before-clear
+      //    race, and ensures the browser Back button cannot re-expose a
+      //    protected screen from the bfcache with stale data.
+      window.location.replace("/login");
     }
   };
 

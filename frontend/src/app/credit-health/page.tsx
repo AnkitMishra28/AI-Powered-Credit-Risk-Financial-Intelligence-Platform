@@ -6,10 +6,10 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { ScoreCard } from "@/components/fintech/ScoreCard";
 import { FactorBreakdown } from "@/components/fintech/FactorBreakdown";
 import { EducationalDisclaimer } from "@/components/fintech/EducationalDisclaimer";
+import { CreditProfileForm } from "@/components/fintech/CreditProfileForm";
 import { useCreditLens } from "@/context/CreditLensContext";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ErrorState } from "@/components/ui/ErrorState";
 import {
@@ -17,8 +17,7 @@ import {
   HelpCircle,
   Sparkles,
   CheckCircle2,
-  AlertTriangle,
-  Activity
+  AlertTriangle
 } from "lucide-react";
 
 export default function CreditHealthPage() {
@@ -50,7 +49,9 @@ export default function CreditHealthPage() {
   }
 
   if (!creditHealth) {
-    // no_data / insufficient_data — never show a canonical score
+    // no_data / insufficient_data — never show a canonical score. Instead give
+    // the user the actual workflow to produce a REAL, persisted score from their
+    // own inputs (pre-filled with statement-derived income/spending).
     return (
       <AppLayout>
         <PageHeader
@@ -58,16 +59,15 @@ export default function CreditHealthPage() {
           subtitle="Proprietary CreditLens 0–1000 behavioral health score and deterministic factor attribution."
           badge={<Badge variant="slate" size="sm">Not calculated yet</Badge>}
         />
-        <EmptyState
-          icon={<Activity className="w-7 h-7" />}
-          title="Your Credit Health Score has not been calculated yet"
-          description={
-            creditHealthState.message ||
-            "Complete your credit profile (credit limits, revolving balances, EMIs, payment history) to generate your personalized CreditLens Health Score. Uploading a bank statement adds your cashflow picture."
-          }
-          actionLabel="Go to Statements"
-          actionHref="/statements"
-        />
+        <div className="mb-8">
+          <CreditProfileForm
+            contextMessage={
+              creditHealthState.status === "insufficient_data"
+                ? "You've uploaded transactions — add the credit-line details above to unlock your score."
+                : creditHealthState.message || undefined
+            }
+          />
+        </div>
         <EducationalDisclaimer />
       </AppLayout>
     );
@@ -99,11 +99,17 @@ export default function CreditHealthPage() {
               <div className="flex items-center justify-between pb-3.5 border-b border-white/[0.08] mb-4">
                 <div>
                   <CardTitle className="text-base text-white">Score History & Trajectory</CardTitle>
-                  <p className="text-xs text-neutral-400">6-month score tracking vs revolving credit utilization</p>
+                  <p className="text-xs text-neutral-400">Score tracking vs revolving credit utilization</p>
                 </div>
-                <Badge variant="emerald" size="sm">
-                  +32 pts over 6 months
-                </Badge>
+                {creditHealth.history.length >= 2 && (() => {
+                  const delta =
+                    creditHealth.history[creditHealth.history.length - 1].score - creditHealth.history[0].score;
+                  return (
+                    <Badge variant={delta >= 0 ? "emerald" : "amber"} size="sm">
+                      {delta >= 0 ? "+" : ""}{delta} pts over {creditHealth.history.length} calculations
+                    </Badge>
+                  );
+                })()}
               </div>
 
               {/* Score Trend Points Grid */}
